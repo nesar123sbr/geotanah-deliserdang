@@ -21,7 +21,7 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel }: M
   if (!mounted) {
     return (
       <div className="h-full w-full flex items-center justify-center bg-slate-900 text-slate-400 font-mono text-xs">
-        Menyiapkan layer peta spasial Deli Serdang...
+        Menyiapkan layer peta spasial Sidikalang...
       </div>
     );
   }
@@ -37,7 +37,7 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel }: M
         fillOpacity: isSelected ? 0.65 : 0.4,
       };
     }
-    if (parcel.status === 'Perlu Verifikasi' || parcel.deviation_percent > 2.0) {
+    if (parcel.status === 'Perlu Verifikasi' || (parcel.deviation_percent !== null && Number(parcel.deviation_percent) > 2.0)) {
       return {
         fillColor: '#f59e0b',
         weight: isSelected ? 3.5 : 1.5,
@@ -58,7 +58,7 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel }: M
   return (
     <div className="h-full w-full relative z-0">
       <MapContainer
-        center={[3.5585, 98.8755]} // Sentral Lubuk Pakam
+        center={[2.7485, 98.3175]}
         zoom={16}
         scrollWheelZoom={true}
         className="h-full w-full rounded-2xl"
@@ -79,6 +79,7 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel }: M
         </LayersControl>
 
         {parcels.map((parcel) => {
+          if (!parcel.geojson) return null;
           try {
             const geojsonObj = JSON.parse(parcel.geojson);
             return (
