@@ -98,12 +98,14 @@ export default function SurveyPage() {
   const [locating, setLocating] = useState(false);
   const [photo, setPhoto] = useState<SurveyPhoto | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
+  const [savedPhotoPreview, setSavedPhotoPreview] = useState('');
   const [processing, setProcessing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [problem, setProblem] = useState('');
   const alive = useRef(true);
   const previewRef = useRef('');
+  const savedPhotoRef = useRef('');
   const gpsRequest = useRef(0);
   const photoRequest = useRef(0);
   const submitLock = useRef(false);
@@ -124,6 +126,7 @@ export default function SurveyPage() {
       gpsRequest.current += 1;
       photoRequest.current += 1;
       if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+      if (savedPhotoRef.current) URL.revokeObjectURL(savedPhotoRef.current);
     };
   }, []);
 
@@ -167,8 +170,17 @@ export default function SurveyPage() {
     setPhoto(null);
   }
 
+  function clearSavedPhoto() {
+    if (savedPhotoRef.current) {
+      URL.revokeObjectURL(savedPhotoRef.current);
+      savedPhotoRef.current = '';
+    }
+    setSavedPhotoPreview('');
+  }
+
   function handleNibChange(event: ChangeEvent<HTMLInputElement>) {
     setNib(event.target.value);
+    clearSavedPhoto();
     setFeedback('');
     setProblem('');
   }
@@ -210,6 +222,7 @@ export default function SurveyPage() {
     event.target.value = '';
     if (!file || submitLock.current || busy) return;
     clearPhoto();
+    clearSavedPhoto();
     const request = ++photoRequest.current;
     setProcessing(true);
     setProblem('');
@@ -263,6 +276,11 @@ export default function SurveyPage() {
       });
       if (error) throw error;
       if (alive.current) {
+        const savedUrl = URL.createObjectURL(photo.blob);
+        if (savedPhotoRef.current) URL.revokeObjectURL(savedPhotoRef.current);
+        savedPhotoRef.current = savedUrl;
+        setSavedPhotoPreview(savedUrl);
+
         setReload((value) => value + 1);
         clearPhoto();
         setGps(null);
@@ -391,6 +409,27 @@ export default function SurveyPage() {
               {submitting && <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />}
               {submitting ? 'Mengunggah dan menyimpan...' : 'Simpan data survei'}
             </button>
+
+            {savedPhotoPreview && (
+              <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-emerald-900 shadow-sm">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={savedPhotoPreview}
+                  alt="Foto yang baru tersimpan"
+                  className="h-14 w-14 rounded-lg object-cover border border-emerald-300 shrink-0 bg-white"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-800">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>Foto tersimpan ✓</span>
+                  </div>
+                  <p className="text-[11px] text-emerald-700 mt-0.5 truncate">
+                    Foto lapangan berhasil disimpan untuk NIB {cleanNib}
+                  </p>
+                </div>
+              </div>
+            )}
+
             <p className="pb-6 text-center text-xs text-slate-600">Pastikan NIB benar sebelum menyimpan. Foto lama tidak dihapus.</p>
           </form>
         )}

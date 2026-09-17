@@ -7,7 +7,7 @@ import { supabase, type ParcelData } from '@/lib/supabase';
 import { 
   ShieldCheck, AlertTriangle, Layers, 
   Compass, Activity, CheckCircle2, ChevronRight, HelpCircle,
-  Download, FileCode, Search
+  Download, FileCode, Search, Camera, ExternalLink
 } from 'lucide-react';
 
 const ParcelMap = dynamic(() => import('@/components/ParcelMap'), {
@@ -35,22 +35,35 @@ export default function Dashboard() {
     return () => window.clearTimeout(timer);
   }, [searchQuery]);
 
-  // Reset tab filter ke 'SEMUA' saat user mengetik pencarian
-  useEffect(() => {
-    if (searchQuery) setFilterTab('SEMUA');
-  }, [searchQuery]);
-
   useEffect(() => {
     async function fetchParcels() {
       const { data, error } = await supabase.rpc('get_parcels_with_metrics_v2', {
         p_dataset_key: 'dairi-demo'
       });
 
+      // Ambil juga kolom survei dari tabel parcels agar photo_path & gps selalu terjamin terisi
+      const { data: surveyData } = await supabase
+        .from('parcels')
+        .select('id, gps_lat, gps_lng, gps_accuracy_m, photo_path, surveyed_at')
+        .eq('dataset_key', 'dairi-demo');
+
       if (error) {
         console.error('Error memuat data persil Dairi:', error);
       } else if (data) {
-        setParcels(data);
-        if (data.length > 0) setSelectedParcel(data[0]);
+        const surveyMap = new Map((surveyData || []).map(s => [s.id, s]));
+        const enriched = (data as ParcelData[]).map((p: ParcelData) => {
+          const s = surveyMap.get(p.id);
+          return {
+            ...p,
+            gps_lat: p.gps_lat ?? s?.gps_lat ?? null,
+            gps_lng: p.gps_lng ?? s?.gps_lng ?? null,
+            gps_accuracy_m: p.gps_accuracy_m ?? s?.gps_accuracy_m ?? null,
+            photo_path: p.photo_path ?? s?.photo_path ?? null,
+            surveyed_at: p.surveyed_at ?? s?.surveyed_at ?? null,
+          };
+        });
+        setParcels(enriched);
+        if (enriched.length > 0) setSelectedParcel(enriched[0]);
       }
       setLoading(false);
     }
@@ -219,7 +232,10 @@ export default function Dashboard() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  if (e.target.value) setFilterTab('SEMUA');
+                }}
                 placeholder="Cari NIB atau Pemilik..."
                 className="w-full bg-slate-950/50 border border-slate-800/80 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors placeholder:text-slate-600"
               />
@@ -408,6 +424,72 @@ export default function Dashboard() {
                   <p className="text-[11px] text-slate-300 italic">
                     &quot;{selectedParcel.surveyor_notes || '-'}&quot;
                   </p>
+                </div>
+
+                {/* Dokumentasi Foto Lapangan & Data GPS Sensus */}
+                <div className="bg-slate-950/60 rounded-xl p-3 border border-slate-800 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase flex items-center gap-1">
+                      <Camera className="h-3 w-3 text-emerald-400" /> Foto & Lokasi Sensus
+                    </span>
+                    {selectedParcel.surveyed_at && (
+                      <span className="text-[9px] text-emerald-400 font-mono">
+                        {new Date(selectedParcel.surveyed_at).toLocaleDateString('id-ID', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </span>
+                    )}
+                  </div>
+
+                  {selectedParcel.photo_path ? (
+                    <div className="space-y-1.5">
+                      <a
+                        href={supabase.storage.from('parcel-photos').getPublicUrl(selectedParcel.photo_path).data.publicUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group relative block overflow-hidden rounded-lg border border-slate-700 bg-slate-900 aspect-video w-full"
+                        title="Klik untuk melihat ukuran penuh"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={supabase.storage.from('parcel-photos').getPublicUrl(selectedParcel.photo_path).data.publicUrl}
+                          alt={`Foto lapangan NIB ${selectedParcel.nib}`}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-medium gap-1">
+                          <span>Buka Ukuran Penuh</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </div>
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-800 bg-slate-950/40 p-3.5 text-center">
+                      <span className="text-[11px] text-slate-400 font-medium">Belum ada foto lapangan</span>
+                      <span className="text-[9px] text-slate-600 mt-0.5">Dapat disurvei melalui Mode Sensus</span>
+                    </div>
+                  )}
+
+                  {/* Metadata GPS jika tersedia */}
+                  {selectedParcel.gps_lat !== null && selectedParcel.gps_lat !== undefined && selectedParcel.gps_lng !== null && selectedParcel.gps_lng !== undefined && (
+                    <div className="pt-2 border-t border-slate-800 font-mono text-[10px] space-y-1 text-slate-400">
+                      <div className="flex justify-between">
+                        <span>Koordinat GPS:</span>
+                        <span className="text-slate-200">
+                          {Number(selectedParcel.gps_lat).toFixed(6)}, {Number(selectedParcel.gps_lng).toFixed(6)}
+                        </span>
+                      </div>
+                      {selectedParcel.gps_accuracy_m !== null && selectedParcel.gps_accuracy_m !== undefined && (
+                        <div className="flex justify-between">
+                          <span>Akurasi:</span>
+                          <span className="text-emerald-400">±{Number(selectedParcel.gps_accuracy_m).toFixed(2)} m</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2 pt-1">
