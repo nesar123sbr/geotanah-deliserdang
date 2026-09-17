@@ -1,10 +1,21 @@
 'use client';
 
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, Camera, CheckCircle2, LocateFixed, LoaderCircle } from 'lucide-react';
 import { supabase, type ParcelData } from '@/lib/supabase';
+import type { SurveyPolygonResult } from '@/components/SurveyDrawMap';
+
+const SurveyDrawMap = dynamic(() => import('@/components/SurveyDrawMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[340px] sm:h-[380px] w-full rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-xs text-slate-500 font-mono">
+      Memuat Peta Delineasi Spasial...
+    </div>
+  ),
+});
 
 type SurveyParcel = Pick<ParcelData,
   'id' | 'nib' | 'owner_name' | 'village' | 'dataset_key' | 'is_demo'
@@ -99,6 +110,12 @@ export default function SurveyPage() {
   const [photo, setPhoto] = useState<SurveyPhoto | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [savedPhotoPreview, setSavedPhotoPreview] = useState('');
+  const [surveyPolygon, setSurveyPolygon] = useState<SurveyPolygonResult>({
+    geojson: null,
+    areaM2: null,
+    points: [],
+    centroid: null,
+  });
   const [processing, setProcessing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -244,8 +261,12 @@ export default function SurveyPage() {
   async function submitSurvey(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitLock.current || busy) return;
-    if (cleanNib.length < 3 || !gps || !validGps(gps) || !photo) {
-      setProblem('Lengkapi NIB (minimal 3 karakter), ambil GPS yang valid, dan pilih foto terlebih dahulu.');
+
+    const hasPolygon = Boolean(surveyPolygon.geojson && surveyPolygon.points.length >= 3);
+    const hasCoordinates = (gps && validGps(gps)) || (hasPolygon && surveyPolygon.centroid);
+
+    if (cleanNib.length < 3 || !hasCoordinates || !photo) {
+      setProblem('Lengkapi NIB (minimal 3 karakter), tentukan koordinat (ambil GPS atau delineasi poligon batas), dan pilih foto terlebih dahulu.');
       return;
     }
     submitLock.current = true;
@@ -269,10 +290,20 @@ export default function SurveyPage() {
         uploadedPath = path;
         pendingUpload.current = { nib: cleanNib, blob: photo.blob, path };
       }
-      // Append-only storage: never remove existing photo_path.
-      const { error } = await supabase.rpc('submit_survey_data', {
-        p_nib: cleanNib, p_lat: gps.lat, p_lng: gps.lng,
-        p_accuracy: gps.accuracy, p_photo_path: uploadedPath,
+
+      // Tentukan koordinat lat/lng dan akurasi: prioritaskan GPS jika diambil, fallback ke centroid poligon
+      const finalLat = (gps && validGps(gps)) ? gps.lat : surveyPolygon.centroid![0];
+      const finalLng = (gps && validGps(gps)) ? gps.lng : surveyPolygon.centroid![1];
+      const finalAccuracy = (gps && validGps(gps)) ? gps.accuracy : 5.0;
+
+      // Append-only storage: panggil RPC v2 dengan dukungan poligon GeoJSON
+      const { data, error } = await supabase.rpc('submit_survey_data_v2', {
+        p_nib: cleanNib,
+        p_lat: finalLat,
+        p_lng: finalLng,
+        p_accuracy: finalAccuracy,
+        p_photo_path: uploadedPath,
+        p_geojson: surveyPolygon.geojson || null,
       });
       if (error) throw error;
       if (alive.current) {
@@ -284,8 +315,18 @@ export default function SurveyPage() {
         setReload((value) => value + 1);
         clearPhoto();
         setGps(null);
-        setFeedback(`Survei NIB ${cleanNib} berhasil disimpan. Foto sebelumnya tetap tersimpan.`);
-        window.alert(`Survei NIB ${cleanNib} berhasil disimpan.`);
+        setSurveyPolygon({
+          geojson: null,
+          areaM2: null,
+          points: [],
+          centroid: null,
+        });
+
+        const polygonNote = (data as { has_polygon?: boolean; spatial_area_m2?: number })?.has_polygon
+          ? ` lengkap dengan poligon batas (${(data as { spatial_area_m2?: number }).spatial_area_m2} m²)`
+          : '';
+        setFeedback(`Survei NIB ${cleanNib} berhasil disimpan${polygonNote}. Foto sebelumnya tetap tersimpan.`);
+        window.alert(`Survei NIB ${cleanNib} berhasil disimpan${polygonNote}.`);
       }
     } catch (error) {
       if (alive.current) {
@@ -413,8 +454,30 @@ export default function SurveyPage() {
               ) : null}
             </section>
 
+            <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                    <span>2. Delineasi Batas Bidang (Peta Kerja)</span>
+                    <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      Opsional
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Ketuk peta satelit di bawah untuk menandai titik-titik patok batas tanah (minimal 3 patok). Luas area dihitung real-time. Jika dilewati, sistem akan menggunakan titik GPS saja.
+                  </p>
+                </div>
+              </div>
+
+              <SurveyDrawMap
+                gps={gps}
+                onPolygonChange={setSurveyPolygon}
+                disabled={busy}
+              />
+            </section>
+
             <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs space-y-3">
-              <h2 className="text-base font-semibold text-slate-900">2. Ambil Lokasi GPS</h2>
+              <h2 className="text-base font-semibold text-slate-900">3. Ambil Lokasi GPS</h2>
               <p className="text-xs text-slate-500">Berdiri di batas bidang pada tempat terbuka, lalu tekan tombol untuk mencatat koordinat satelit.</p>
               <button 
                 type="button" 
@@ -453,7 +516,7 @@ export default function SurveyPage() {
             </section>
 
             <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs space-y-3">
-              <h2 className="text-base font-semibold text-slate-900">3. Ambil Foto Lapangan</h2>
+              <h2 className="text-base font-semibold text-slate-900">4. Ambil Foto Lapangan</h2>
               <p className="text-xs text-slate-500">Foto dikompresi otomatis (maks. 1280px) menggunakan format WebP/JPEG hemat kuota.</p>
               <label htmlFor="survey-photo" className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
                 <Camera className="h-4 w-4 text-emerald-600" aria-hidden="true" /> Buka kamera atau pilih berkas foto
@@ -489,7 +552,7 @@ export default function SurveyPage() {
             
             <button 
               type="submit" 
-              disabled={cleanNib.length < 3 || !gps || !photo || busy}
+              disabled={cleanNib.length < 3 || (!gps && !(surveyPolygon.geojson && surveyPolygon.points.length >= 3)) || !photo || busy}
               className={`${buttonClass} w-full bg-emerald-700 text-white shadow-md shadow-emerald-700/20 hover:bg-emerald-800 active:scale-[0.98]`}
             >
               {submitting && <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />}

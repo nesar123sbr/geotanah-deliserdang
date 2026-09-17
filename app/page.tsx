@@ -446,11 +446,15 @@ export default function Dashboard() {
                   </span>
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-400">Surat Dokumen:</span>
-                    <span className="font-mono text-slate-200">{selectedParcel.legal_area_m2} m²</span>
+                    <span className="font-mono text-slate-200">
+                      {Number(selectedParcel.legal_area_m2) <= 0.01 
+                        ? 'Belum Ada (Indikatif)' 
+                        : `${selectedParcel.legal_area_m2} m²`}
+                    </span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-400">Hitung Spasial:</span>
-                    <span className="font-mono text-emerald-400 font-medium">{selectedParcel.spatial_area_m2 ?? '-'} m²</span>
+                    <span className="font-mono text-emerald-400 font-medium">{selectedParcel.spatial_area_m2 ? `${selectedParcel.spatial_area_m2} m²` : '-'}</span>
                   </div>
                   <div className="pt-1.5 border-t border-slate-800/80 flex justify-between text-xs">
                     <span className="text-slate-400">Margin Deviasi:</span>
@@ -459,9 +463,11 @@ export default function Dashboard() {
                         ? 'text-amber-400' 
                         : 'text-emerald-400'
                     }`}>
-                      {selectedParcel.deviation_percent !== null 
-                        ? `${Number(selectedParcel.deviation_percent).toFixed(2)}%` 
-                        : '-'}
+                      {Number(selectedParcel.legal_area_m2) <= 0.01 
+                        ? 'Perlu Warkah Fisik' 
+                        : selectedParcel.deviation_percent !== null 
+                          ? `${Number(selectedParcel.deviation_percent).toFixed(2)}%` 
+                          : '-'}
                     </span>
                   </div>
                 </div>
