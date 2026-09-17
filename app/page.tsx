@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { supabase, ParcelData } from '@/lib/supabase';
+import Link from 'next/link';
+import { supabase, type ParcelData } from '@/lib/supabase';
 import { 
   ShieldCheck, AlertTriangle, Layers, 
   Compass, Activity, CheckCircle2, ChevronRight, HelpCircle,
-  Download, FileCode
+  Download, FileCode, Search
 } from 'lucide-react';
 
 const ParcelMap = dynamic(() => import('@/components/ParcelMap'), {
@@ -23,6 +24,21 @@ export default function Dashboard() {
   const [selectedParcel, setSelectedParcel] = useState<ParcelData | null>(null);
   const [loading, setLoading] = useState(true);
   const [filterTab, setFilterTab] = useState<'SEMUA' | 'KW1' | 'KW456' | 'CONFLICT'>('SEMUA');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+
+  // Jeda pencarian agar performa web tetap cepat
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(searchQuery.trim().toLowerCase());
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Reset tab filter ke 'SEMUA' saat user mengetik pencarian
+  useEffect(() => {
+    if (searchQuery) setFilterTab('SEMUA');
+  }, [searchQuery]);
 
   useEffect(() => {
     async function fetchParcels() {
@@ -41,21 +57,33 @@ export default function Dashboard() {
     fetchParcels();
   }, []);
 
-  // Metrik KPI Dashboard
   const totalParcels = parcels.length;
   const kw1Count = parcels.filter(p => p.kkp_category === 'KW 1').length;
-  const kw456Count = parcels.filter(p => p.kkp_category && ['KW 4', 'KW 5', 'KW 6'].includes(p.kkp_category)).length;
+  const kw456Count = parcels.filter(p => 
+    p.kkp_category ? ['KW 4', 'KW 5', 'KW 6'].includes(p.kkp_category) : false
+  ).length;
   const conflictCount = parcels.filter(p => p.is_overlapping === true || p.status === 'Tumpang Tindih').length;
 
-  // Filter Tab List
-  const filteredParcels = parcels.filter(p => {
-    if (filterTab === 'KW1') return p.kkp_category === 'KW 1';
-    if (filterTab === 'KW456') return p.kkp_category && ['KW 4', 'KW 5', 'KW 6'].includes(p.kkp_category);
-    if (filterTab === 'CONFLICT') return p.is_overlapping === true || p.status === 'Tumpang Tindih';
-    return true;
+  // Logika Filter Gabungan (Pencarian + Kategori Tab)
+  const filteredParcels = parcels.filter((p) => {
+    let matchTab = true;
+    if (filterTab === 'KW1') {
+      matchTab = p.kkp_category === 'KW 1';
+    } else if (filterTab === 'KW456') {
+      matchTab = p.kkp_category ? ['KW 4', 'KW 5', 'KW 6'].includes(p.kkp_category) : false;
+    } else if (filterTab === 'CONFLICT') {
+      matchTab = p.is_overlapping === true || p.status === 'Tumpang Tindih';
+    }
+
+    let matchSearch = true;
+    if (debouncedQuery) {
+      matchSearch = p.nib.toLowerCase().includes(debouncedQuery) || 
+                    p.owner_name.toLowerCase().includes(debouncedQuery);
+    }
+
+    return matchTab && matchSearch;
   });
 
-  // Export Titik Patok CSV untuk AutoCAD Map 3D
   const handleExportCadCsv = (parcel: ParcelData) => {
     if (!parcel.geojson) return;
     try {
@@ -65,7 +93,7 @@ export default function Dashboard() {
         return;
       }
       const ring = geom.coordinates[0];
-      const vertices = ring.slice(0, -1); // buang titik penutup duplikat
+      const vertices = ring.slice(0, -1);
       let csv = 'No_Patok,Longitude_X,Latitude_Y\r\n';
       vertices.forEach((pt: number[], idx: number) => {
         csv += `P-${idx + 1},${Number(pt[0]).toFixed(7)},${Number(pt[1]).toFixed(7)}\r\n`;
@@ -82,7 +110,6 @@ export default function Dashboard() {
     }
   };
 
-  // Export GeoJSON RFC 7946 untuk QGIS/ArcGIS
   const handleExportGeoJson = (parcel: ParcelData) => {
     if (!parcel.geojson) return;
     try {
@@ -124,8 +151,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
-      {/* Top Bar Header */}
-      <header className="border-b border-slate-800/80 bg-slate-900/80 backdrop-blur px-6 py-3 flex items-center justify-between sticky top-0 z-50">
+      <header className="border-b border-slate-800/80 bg-slate-900/80 backdrop-blur px-4 sm:px-6 py-3 flex flex-wrap gap-3 items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white">
             <Compass className="h-5 w-5" />
@@ -141,19 +167,19 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 bg-slate-800/60 border border-slate-700 px-3 py-1.5 rounded-lg text-xs">
-          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-slate-300 hidden sm:inline">Kantah Kab. Dairi</span>
+        <div className="flex items-center gap-3">
+          <Link href="/survey" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors">
+            Buka Mode Sensus
+          </Link>
+          <div className="hidden xl:flex items-center gap-2 bg-slate-800/60 border border-slate-700 px-3 py-1.5 rounded-lg text-xs">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-slate-300">Kantah Kab. Dairi</span>
+          </div>
         </div>
       </header>
 
-      {/* Bento Grid */}
       <main className="flex-1 p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 max-w-[1700px] w-full mx-auto">
-        
-        {/* Panel Kiri (3 Col) */}
         <div className="lg:col-span-3 flex flex-col gap-4">
-          
-          {/* Bento Card: 4 KPI Metrics */}
           <div className="grid grid-cols-2 gap-2.5">
             <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3">
               <span className="text-[11px] text-slate-400">Total NIB</span>
@@ -177,8 +203,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* List Persil & Filter Tabs */}
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex-1 flex flex-col min-h-[300px]">
+          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex-1 flex flex-col min-h-[400px]">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <Layers className="h-3.5 w-3.5 text-emerald-400" /> Persil Dairi
@@ -186,7 +211,20 @@ export default function Dashboard() {
               <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-400">Sidikalang</span>
             </div>
 
-            {/* Filter Tabs */}
+            {/* Kotak Input Pencarian */}
+            <div className="relative mb-3">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-slate-500" />
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari NIB atau Pemilik..."
+                className="w-full bg-slate-950/50 border border-slate-800/80 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 transition-colors placeholder:text-slate-600"
+              />
+            </div>
+
             <div className="grid grid-cols-4 gap-1 p-1 bg-slate-950/60 rounded-xl border border-slate-800/80 mb-3 text-[10px]">
               <button 
                 onClick={() => setFilterTab('SEMUA')}
@@ -214,11 +252,11 @@ export default function Dashboard() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[380px]">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[350px]">
               {loading ? (
                 <div className="text-xs text-slate-500 text-center py-8">Mengambil data dari Supabase RPC v2...</div>
               ) : filteredParcels.length === 0 ? (
-                <div className="text-xs text-slate-500 text-center py-8">Tidak ada persil pada filter ini.</div>
+                <div className="text-xs text-slate-500 text-center py-8">Tidak ada persil yang cocok.</div>
               ) : (
                 filteredParcels.map((parcel) => (
                   <button
@@ -227,7 +265,7 @@ export default function Dashboard() {
                     className={`w-full text-left p-3 rounded-xl border transition-all flex items-center justify-between ${
                       selectedParcel?.id === parcel.id
                         ? 'bg-emerald-950/40 border-emerald-500/60 shadow-sm'
-                        : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-850'
+                        : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-800'
                     }`}
                   >
                     <div>
@@ -250,7 +288,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Panel Peta Tengah (6 Col) */}
         <div className="lg:col-span-6 bg-slate-900/80 border border-slate-800 rounded-2xl p-2 min-h-[450px] lg:min-h-[580px] shadow-xl relative">
           <div className="absolute top-4 left-4 z-10 bg-slate-900/90 backdrop-blur border border-slate-700 px-3 py-1.5 rounded-lg text-xs flex items-center gap-2">
             <Activity className="h-3.5 w-3.5 text-emerald-400" />
@@ -263,7 +300,6 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Panel Kanan (3 Col) */}
         <div className="lg:col-span-3 flex flex-col gap-4">
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-1.5">
@@ -272,8 +308,6 @@ export default function Dashboard() {
 
             {selectedParcel ? (
               <div className="space-y-3.5 text-xs">
-                
-                {/* Status Indicator */}
                 {(() => {
                   const isConflict = selectedParcel.is_overlapping === true || selectedParcel.status === 'Tumpang Tindih';
                   const isWarning = !isConflict && (
@@ -316,7 +350,6 @@ export default function Dashboard() {
                   );
                 })()}
 
-                {/* Badges Atribut KKP & Hak */}
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-1 rounded-lg bg-emerald-950/60 border border-emerald-800/80 text-[11px] font-mono text-emerald-300">
                     {selectedParcel.kkp_category || 'KW -'}
@@ -329,7 +362,6 @@ export default function Dashboard() {
                   </span>
                 </div>
 
-                {/* Detail Identitas */}
                 <div className="bg-slate-950/60 rounded-xl p-3 border border-slate-800 space-y-1.5 font-mono text-[11px]">
                   <div className="flex justify-between pb-1 border-b border-slate-800">
                     <span className="text-slate-500 font-sans">NIB</span>
@@ -345,7 +377,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Perhitungan Luas Spheroid */}
                 <div className="bg-slate-950/60 rounded-xl p-3 border border-slate-800 space-y-2">
                   <span className="text-[10px] font-semibold text-slate-400 block uppercase">
                     Kalkulasi Luas (Meter²)
@@ -372,7 +403,6 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Catatan Juru Ukur */}
                 <div className="bg-slate-950/40 rounded-xl p-2.5 border border-slate-800">
                   <span className="text-[10px] text-slate-500 block mb-0.5 uppercase font-semibold">Catatan Lapangan</span>
                   <p className="text-[11px] text-slate-300 italic">
@@ -380,7 +410,6 @@ export default function Dashboard() {
                   </p>
                 </div>
 
-                {/* Tombol Integrasi CAD & GIS */}
                 <div className="space-y-2 pt-1">
                   <button 
                     onClick={() => handleExportCadCsv(selectedParcel)}

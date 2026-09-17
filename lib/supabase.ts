@@ -25,5 +25,10 @@ export interface ParcelData {
   is_demo: boolean;
   geometry_source: string | null;
   surveyor_notes?: string | null;
+  gps_lat?: number | null;
+  gps_lng?: number | null;
+  gps_accuracy_m?: number | null;
+  photo_path?: string | null;
+  surveyed_at?: string | null;
   geojson: string | null;
 }
