@@ -7,6 +7,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 
 export type KKPCategory = 'KW 1' | 'KW 4' | 'KW 5' | 'KW 6';
 export type ParcelStatus = 'Terverifikasi' | 'Perlu Verifikasi' | 'Tumpang Tindih';
+export type ProgramType = 'Reguler' | 'Wakaf' | 'Rumah Ibadah' | 'MBR' | 'Hibah';
 
 export interface ParcelData {
   id: string;
@@ -30,5 +31,6 @@ export interface ParcelData {
   gps_accuracy_m?: number | null;
   photo_path?: string | null;
   surveyed_at?: string | null;
+  program_type?: ProgramType | null;
   geojson: string | null;
 }

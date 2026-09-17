@@ -9,6 +9,7 @@ import {
   Compass, Activity, CheckCircle2, ChevronRight, HelpCircle,
   Download, FileCode, Search, Camera, ExternalLink, MapPin, RotateCcw
 } from 'lucide-react';
+import ExportModal from '@/components/ExportModal';
 
 const ParcelMap = dynamic(() => import('@/components/ParcelMap'), {
   ssr: false,
@@ -19,6 +20,14 @@ const ParcelMap = dynamic(() => import('@/components/ParcelMap'), {
   ),
 });
 
+const PROGRAM_CONFIG: Record<string, { icon: string; label: string; badgeClass: string }> = {
+  Wakaf: { icon: '🕌', label: 'Wakaf', badgeClass: 'bg-emerald-950/80 text-emerald-300 border-emerald-800' },
+  MBR: { icon: '🏠', label: 'MBR', badgeClass: 'bg-blue-950/80 text-blue-300 border-blue-800' },
+  'Rumah Ibadah': { icon: '🏛️', label: 'Rumah Ibadah', badgeClass: 'bg-purple-950/80 text-purple-300 border-purple-800' },
+  Hibah: { icon: '🎁', label: 'Hibah', badgeClass: 'bg-amber-950/80 text-amber-300 border-amber-800' },
+  Reguler: { icon: '📋', label: 'Reguler', badgeClass: 'bg-slate-800/80 text-slate-400 border-slate-700' },
+};
+
 export default function Dashboard() {
   const [parcels, setParcels] = useState<ParcelData[]>([]);
   const [selectedParcel, setSelectedParcel] = useState<ParcelData | null>(null);
@@ -26,8 +35,13 @@ export default function Dashboard() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const [filterTab, setFilterTab] = useState<'SEMUA' | 'KW1' | 'KW456' | 'CONFLICT'>('SEMUA');
+  const [programFilter, setProgramFilter] = useState<'ALL' | 'Reguler' | 'Wakaf' | 'Rumah Ibadah' | 'MBR' | 'Hibah'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportProgressText, setExportProgressText] = useState('');
+  const [exportProgressPercent, setExportProgressPercent] = useState(0);
 
   // Jeda pencarian agar performa web tetap cepat
   useEffect(() => {
@@ -107,7 +121,7 @@ export default function Dashboard() {
   ).length;
   const conflictCount = parcels.filter(p => p.is_overlapping === true || p.status === 'Tumpang Tindih').length;
 
-  // Logika Filter Gabungan (Pencarian + Kategori Tab)
+  // Logika Filter Gabungan (Pencarian + Kategori Tab KKP + Filter Program)
   const filteredParcels = parcels.filter((p) => {
     let matchTab = true;
     if (filterTab === 'KW1') {
@@ -118,13 +132,18 @@ export default function Dashboard() {
       matchTab = p.is_overlapping === true || p.status === 'Tumpang Tindih';
     }
 
+    let matchProgram = true;
+    if (programFilter !== 'ALL') {
+      matchProgram = (p.program_type || 'Reguler') === programFilter;
+    }
+
     let matchSearch = true;
     if (debouncedQuery) {
       matchSearch = p.nib.toLowerCase().includes(debouncedQuery) || 
                     p.owner_name.toLowerCase().includes(debouncedQuery);
     }
 
-    return matchTab && matchSearch;
+    return matchTab && matchProgram && matchSearch;
   });
 
   const handleExportCadCsv = (parcel: ParcelData) => {
@@ -192,6 +211,23 @@ export default function Dashboard() {
     }
   };
 
+  const handleStartExport = async (includePhotos: boolean) => {
+    setIsExporting(true);
+    setExportProgressPercent(20);
+    setExportProgressText(includePhotos ? 'Menyiapkan data spasial & antrean foto...' : 'Menyiapkan data geodatabase...');
+    try {
+      console.log('[ExportGeodatabase] Ready for Lapis 4, includePhotos:', includePhotos);
+      await new Promise(r => setTimeout(r, 600));
+      setExportProgressPercent(100);
+      setExportProgressText('Siap untuk pembuatan ZIP (Lapis 4).');
+    } finally {
+      setTimeout(() => {
+        setIsExporting(false);
+        setIsExportModalOpen(false);
+      }, 500);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
       <header className="border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md px-4 sm:px-6 py-3.5 flex flex-wrap gap-3 items-center justify-between sticky top-0 z-50 shadow-sm">
@@ -211,6 +247,16 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsExportModalOpen(true)}
+            disabled={isExporting || loading}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700/90 border border-slate-700 px-4 text-sm font-semibold text-slate-200 hover:text-white active:scale-[0.98] transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            title="Export Geodatabase lengkap (GeoJSON, CSV, Rekap, dan Foto) ke format ZIP"
+          >
+            <Download className="h-4 w-4 text-emerald-400" />
+            <span>Export Geodatabase</span>
+          </button>
           <Link 
             href="/survey" 
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-500 active:scale-[0.98] transition-all shadow-sm shadow-emerald-950/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
@@ -311,7 +357,7 @@ export default function Dashboard() {
               />
             </div>
 
-            <div className="grid grid-cols-4 gap-1 p-1 bg-slate-950/60 rounded-xl border border-slate-800/80 mb-3 text-[10px]">
+            <div className="grid grid-cols-4 gap-1 p-1 bg-slate-950/60 rounded-xl border border-slate-800/80 mb-2 text-[10px]">
               <button 
                 onClick={() => setFilterTab('SEMUA')}
                 className={`py-1.5 rounded-lg transition-all active:scale-[0.98] ${filterTab === 'SEMUA' ? 'bg-slate-800 text-white font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
@@ -336,6 +382,31 @@ export default function Dashboard() {
               >
                 Overlap
               </button>
+            </div>
+
+            {/* Filter Tab Program Sensus */}
+            <div className="flex items-center gap-1 p-1 bg-slate-950/60 rounded-xl border border-slate-800/80 mb-3 text-[10px] overflow-x-auto no-scrollbar">
+              {[
+                { id: 'ALL', label: 'Semua Program', icon: '' },
+                { id: 'Wakaf', label: 'Wakaf', icon: '🕌' },
+                { id: 'MBR', label: 'MBR', icon: '🏠' },
+                { id: 'Rumah Ibadah', label: 'Ibadah', icon: '🏛️' },
+                { id: 'Hibah', label: 'Hibah', icon: '🎁' },
+                { id: 'Reguler', label: 'Reguler', icon: '📋' },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setProgramFilter(item.id as typeof programFilter)}
+                  className={`py-1 px-2 rounded-lg transition-all whitespace-nowrap shrink-0 flex items-center gap-1 active:scale-[0.98] ${
+                    programFilter === item.id
+                      ? 'bg-emerald-800/90 text-emerald-100 font-semibold shadow-sm border border-emerald-600/60'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {item.icon && <span>{item.icon}</span>}
+                  <span>{item.label}</span>
+                </button>
+              ))}
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[350px]">
@@ -372,13 +443,26 @@ export default function Dashboard() {
                     }`}
                   >
                     <div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-xs font-mono font-semibold text-slate-200">{parcel.nib}</span>
                         {parcel.kkp_category && (
                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-emerald-400 font-mono">
                             {parcel.kkp_category}
                           </span>
                         )}
+                        {(() => {
+                          const prog = parcel.program_type || 'Reguler';
+                          const conf = PROGRAM_CONFIG[prog] || PROGRAM_CONFIG.Reguler;
+                          return (
+                            <span 
+                              className={`text-[9px] px-1.5 py-0.5 rounded border font-medium flex items-center gap-0.5 ${conf.badgeClass}`}
+                              title={`Program: ${prog}`}
+                            >
+                              <span>{conf.icon}</span>
+                              <span>{conf.label}</span>
+                            </span>
+                          );
+                        })()}
                       </div>
                       <div className="text-[11px] text-slate-400 mt-0.5">{parcel.owner_name}</div>
                       <div className="text-[10px] text-slate-500">{parcel.village}</div>
@@ -465,13 +549,23 @@ export default function Dashboard() {
                   );
                 })()}
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <span className="px-2.5 py-1 rounded-lg bg-emerald-950/60 border border-emerald-800/80 text-[11px] font-mono text-emerald-300 font-medium">
                     {selectedParcel.kkp_category || 'KW -'}
                   </span>
                   <span className="px-2.5 py-1 rounded-lg bg-slate-800/80 border border-slate-700 text-[11px] text-slate-300 font-medium">
                     {selectedParcel.hak_type || 'Hak Milik'}
                   </span>
+                  {(() => {
+                    const prog = selectedParcel.program_type || 'Reguler';
+                    const conf = PROGRAM_CONFIG[prog] || PROGRAM_CONFIG.Reguler;
+                    return (
+                      <span className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium flex items-center gap-1 ${conf.badgeClass}`}>
+                        <span>{conf.icon}</span>
+                        <span>{prog}</span>
+                      </span>
+                    );
+                  })()}
                   <span className="px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[10px] text-slate-400 font-mono">
                     src: {selectedParcel.geometry_source || 'survei'}
                   </span>
@@ -481,6 +575,13 @@ export default function Dashboard() {
                   <div className="flex justify-between pb-1.5 border-b border-slate-800/80">
                     <span className="text-slate-400 font-sans text-xs">NIB</span>
                     <span className="text-slate-200 font-semibold">{selectedParcel.nib}</span>
+                  </div>
+                  <div className="flex justify-between pb-1.5 border-b border-slate-800/80">
+                    <span className="text-slate-400 font-sans text-xs">Program Sensus</span>
+                    <span className="text-slate-200 font-sans flex items-center gap-1.5">
+                      <span>{PROGRAM_CONFIG[selectedParcel.program_type || 'Reguler']?.icon || '📋'}</span>
+                      <span className="font-semibold text-xs">{selectedParcel.program_type || 'Reguler'}</span>
+                    </span>
                   </div>
                   <div className="flex justify-between pb-1.5 border-b border-slate-800/80">
                     <span className="text-slate-400 font-sans text-xs">Pemilik</span>
@@ -557,16 +658,27 @@ export default function Dashboard() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="group relative block overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900 aspect-video w-full shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-                        title="Klik untuk membuka foto ukuran penuh"
+                        title="Klik untuk membuka foto resolusi penuh di tab baru"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={supabase.storage.from('parcel-photos').getPublicUrl(selectedParcel.photo_path).data.publicUrl}
+                          src={
+                            supabase.storage.from('parcel-photos').getPublicUrl(selectedParcel.photo_path, {
+                              transform: {
+                                width: 400,
+                                height: 300,
+                                resize: 'cover',
+                                quality: 60,
+                              },
+                            }).data.publicUrl
+                          }
                           alt={`Foto lapangan NIB ${selectedParcel.nib}`}
+                          loading="lazy"
+                          decoding="async"
                           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                         />
                         <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-medium gap-1.5 backdrop-blur-[1px]">
-                          <span>Buka Ukuran Penuh</span>
+                          <span>Buka Resolusi Penuh</span>
                           <ExternalLink className="h-3.5 w-3.5" />
                         </div>
                       </a>
@@ -647,6 +759,16 @@ export default function Dashboard() {
           </div>
         </div>
       </main>
+
+      {/* Modal Dialog Export Geodatabase */}
+      <ExportModal
+        isOpen={isExportModalOpen}
+        isExporting={isExporting}
+        progressText={exportProgressText}
+        progressPercent={exportProgressPercent}
+        onClose={() => setIsExportModalOpen(false)}
+        onStartExport={handleStartExport}
+      />
     </div>
   );
 }

@@ -25,15 +25,121 @@ BEFORE UPDATE ON public.parcels
 FOR EACH ROW
 EXECUTE FUNCTION public.handle_parcels_updated_at();
 
--- 2. RPC BARU: submit_survey_data_v2
--- Signature: p_nib, p_lat, p_lng, p_accuracy, p_photo_path, p_geojson
+-- 2. Kolom dan Indeks program_type (Wakaf, Rumah Ibadah, MBR, Hibah, Reguler)
+ALTER TABLE public.parcels
+  ADD COLUMN IF NOT EXISTS program_type TEXT
+  CHECK (program_type IS NULL OR program_type IN
+    ('Reguler', 'Wakaf', 'Rumah Ibadah', 'MBR', 'Hibah'));
+
+UPDATE public.parcels SET program_type = 'Reguler'
+  WHERE program_type IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_parcels_program
+  ON public.parcels (program_type);
+
+-- 3. RPC get_parcels_with_metrics_v2 (dengan return program_type)
+DROP FUNCTION IF EXISTS public.get_parcels_with_metrics_v2(text);
+
+CREATE OR REPLACE FUNCTION public.get_parcels_with_metrics_v2(p_dataset_key text DEFAULT 'dairi-demo'::text)
+ RETURNS TABLE(
+    id uuid,
+    nib character varying,
+    owner_name character varying,
+    sub_district character varying,
+    village character varying,
+    legal_area_m2 numeric,
+    spatial_area_m2 numeric,
+    deviation_percent numeric,
+    is_overlapping boolean,
+    status parcel_status,
+    kkp_category text,
+    hak_type character varying,
+    dataset_key text,
+    is_demo boolean,
+    geometry_source text,
+    surveyor_notes text,
+    gps_lat numeric,
+    gps_lng numeric,
+    gps_accuracy_m numeric,
+    photo_path text,
+    surveyed_at timestamp with time zone,
+    program_type text,
+    geojson text
+ )
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO 'public', 'extensions'
+AS $function$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        p.id,
+        p.nib,
+        p.owner_name,
+        p.sub_district,
+        p.village,
+        p.legal_area_m2,
+        CASE 
+            WHEN p.geom IS NOT NULL THEN 
+                ROUND(extensions.ST_Area(p.geom, true)::numeric, 2)
+            ELSE NULL::numeric 
+        END AS spatial_area_m2,
+        CASE 
+            WHEN p.geom IS NOT NULL AND p.legal_area_m2 > 0 THEN 
+                (ABS(extensions.ST_Area(p.geom, true)::numeric - p.legal_area_m2) / NULLIF(p.legal_area_m2, 0)) * 100::numeric
+            ELSE NULL::numeric 
+        END AS deviation_percent,
+        CASE 
+            WHEN p.geom IS NOT NULL THEN EXISTS (
+                SELECT 1 
+                FROM public.parcels other 
+                WHERE other.id != p.id 
+                  AND other.dataset_key = p.dataset_key
+                  AND other.geom IS NOT NULL
+                  AND (other.geom::extensions.geometry && p.geom::extensions.geometry)
+                  AND extensions.ST_Relate(other.geom::extensions.geometry, p.geom::extensions.geometry, '2********')
+            )
+            ELSE NULL::boolean 
+        END AS is_overlapping,
+        p.status,
+        p.kkp_category,
+        p.hak_type,
+        p.dataset_key,
+        p.is_demo,
+        p.geometry_source,
+        p.surveyor_notes,
+        p.gps_lat,
+        p.gps_lng,
+        p.gps_accuracy_m,
+        p.photo_path,
+        p.surveyed_at,
+        p.program_type,
+        CASE 
+            WHEN p.geom IS NOT NULL THEN 
+                extensions.ST_AsGeoJSON(extensions.ST_ForcePolygonCCW(p.geom::extensions.geometry))
+            ELSE NULL::text 
+        END AS geojson
+    FROM public.parcels p
+    WHERE p.dataset_key = p_dataset_key
+    ORDER BY p.nib ASC;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.get_parcels_with_metrics_v2(text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_parcels_with_metrics_v2(text) TO anon, authenticated;
+
+-- 4. RPC submit_survey_data_v2 (dengan parameter p_program_type)
+DROP FUNCTION IF EXISTS public.submit_survey_data_v2(TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT);
+DROP FUNCTION IF EXISTS public.submit_survey_data_v2(TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, TEXT);
+
 CREATE OR REPLACE FUNCTION public.submit_survey_data_v2(
   p_nib TEXT,
   p_lat NUMERIC,
   p_lng NUMERIC,
   p_accuracy NUMERIC DEFAULT NULL,
   p_photo_path TEXT DEFAULT '',
-  p_geojson TEXT DEFAULT NULL
+  p_geojson TEXT DEFAULT NULL,
+  p_program_type TEXT DEFAULT 'Reguler'
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -43,6 +149,7 @@ AS $$
 DECLARE
   v_nib TEXT := btrim(p_nib);
   v_photo_path TEXT := btrim(p_photo_path);
+  v_program_type TEXT := COALESCE(NULLIF(btrim(p_program_type), ''), 'Reguler');
   v_geom extensions.geography(Polygon, 4326) := NULL;
   v_spatial_area NUMERIC := NULL;
   v_centroid_lat NUMERIC := p_lat;
@@ -55,6 +162,9 @@ BEGIN
   END IF;
   IF v_photo_path IS NULL OR char_length(v_photo_path) < 5 THEN
     RAISE EXCEPTION 'Path foto wajib diisi, minimal 5 karakter.' USING ERRCODE = '22023';
+  END IF;
+  IF v_program_type NOT IN ('Reguler', 'Wakaf', 'Rumah Ibadah', 'MBR', 'Hibah') THEN
+    RAISE EXCEPTION 'Jenis program tidak valid: %', v_program_type USING ERRCODE = '22023';
   END IF;
 
   -- 2. Parsing GeoJSON Poligon jika ada
@@ -94,6 +204,7 @@ BEGIN
       gps_accuracy_m = p_accuracy,
       photo_path = v_photo_path,
       geom = COALESCE(v_geom, p.geom),
+      program_type = v_program_type,
       -- Kategori KKP dipertahankan dari data yuridis KKP resmi; tidak otomatis diubah jadi KW 1
       kkp_category = COALESCE(p.kkp_category, 'KW 4'),
       -- Luas yuridis tidak boleh ditimpa luas spasial hasil digitasi
@@ -109,6 +220,7 @@ BEGIN
     'nib', p.nib,
     'owner_name', p.owner_name,
     'village', p.village,
+    'program_type', p.program_type,
     'gps_lat', p.gps_lat,
     'gps_lng', p.gps_lng,
     'gps_accuracy_m', p.gps_accuracy_m,
@@ -141,6 +253,7 @@ BEGIN
       photo_path,
       kkp_category,
       hak_type,
+      program_type,
       surveyed_at,
       created_at,
       updated_at
@@ -165,6 +278,7 @@ BEGIN
       v_photo_path,
       'KW 4', -- Kategori KKP default konservatif: belum terdaftar di peta pendaftaran KKP resmi
       'Hak Milik',
+      v_program_type,
       NOW(),
       NOW(),
       NOW()
@@ -174,6 +288,7 @@ BEGIN
       'nib', parcels.nib,
       'owner_name', parcels.owner_name,
       'village', parcels.village,
+      'program_type', parcels.program_type,
       'gps_lat', parcels.gps_lat,
       'gps_lng', parcels.gps_lng,
       'gps_accuracy_m', parcels.gps_accuracy_m,
@@ -190,9 +305,9 @@ END;
 $$;
 
 -- Izin Eksekusi untuk anonymous dan authenticated users
-REVOKE ALL ON FUNCTION public.submit_survey_data_v2(TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT)
+REVOKE ALL ON FUNCTION public.submit_survey_data_v2(TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, TEXT)
   FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.submit_survey_data_v2(TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT)
+GRANT EXECUTE ON FUNCTION public.submit_survey_data_v2(TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, TEXT)
   TO anon, authenticated;
 
 COMMIT;

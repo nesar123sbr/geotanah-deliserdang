@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, Camera, CheckCircle2, LocateFixed, LoaderCircle } from 'lucide-react';
-import { supabase, type ParcelData } from '@/lib/supabase';
+import { supabase, type ParcelData, type ProgramType } from '@/lib/supabase';
 import type { SurveyPolygonResult } from '@/components/SurveyDrawMap';
 
 const SurveyDrawMap = dynamic(() => import('@/components/SurveyDrawMap'), {
@@ -19,7 +19,7 @@ const SurveyDrawMap = dynamic(() => import('@/components/SurveyDrawMap'), {
 
 type SurveyParcel = Pick<ParcelData,
   'id' | 'nib' | 'owner_name' | 'village' | 'dataset_key' | 'is_demo'
-  | 'gps_lat' | 'gps_lng' | 'gps_accuracy_m' | 'photo_path' | 'surveyed_at'>;
+  | 'gps_lat' | 'gps_lng' | 'gps_accuracy_m' | 'photo_path' | 'surveyed_at' | 'program_type'>;
 type GpsFix = { lat: number; lng: number; accuracy: number };
 type SurveyPhoto = { blob: Blob; extension: 'webp' | 'jpg'; width: number; height: number };
 type PendingUpload = { nib: string; blob: Blob; path: string };
@@ -60,40 +60,99 @@ async function compressPhoto(file: File): Promise<SurveyPhoto> {
     });
     if (!image.naturalWidth || !image.naturalHeight) throw new Error('Ukuran foto tidak valid.');
 
-    const canvas = document.createElement('canvas');
-    canvas.width = 1;
-    canvas.height = 1;
+    // Deteksi dukungan format WebP pada browser
+    const testCanvas = document.createElement('canvas');
+    testCanvas.width = 1;
+    testCanvas.height = 1;
     let supportsWebP = false;
     try {
-      supportsWebP = canvas.toDataURL('image/webp').startsWith('data:image/webp');
+      supportsWebP = testCanvas.toDataURL('image/webp').startsWith('data:image/webp');
     } catch {
-      // Some browsers restrict WebP encoding; JPEG remains available.
+      // Browser tidak mendukung WebP, fallback ke JPEG
     }
-    const scale = Math.min(1, 1280 / Math.max(image.naturalWidth, image.naturalHeight));
-    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+    const encode = (cvs: HTMLCanvasElement, mime: string, q: number) =>
+      new Promise<Blob | null>((resolve) => {
+        cvs.toBlob(resolve, mime, q);
+      });
+
+    // Profil kompresi adaptif bertingkat (maksimal 5 tahap, target <= 250 KB)
+    const ADAPTIVE_PROFILES: Array<{ maxDim: number; quality: number }> = [
+      { maxDim: 1280, quality: 0.75 },
+      { maxDim: 1280, quality: 0.65 },
+      { maxDim: 1024, quality: 0.65 },
+      { maxDim: 800, quality: 0.55 },
+      { maxDim: 640, quality: 0.50 },
+    ];
+
+    const TARGET_MAX_BYTES = 250 * 1024; // 250 KB
+    let bestBlob: Blob | null = null;
+    let bestMeta = { width: 0, height: 0, quality: 0.75, maxDim: 1280 };
+
+    const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     if (!context) throw new Error('Browser tidak mendukung pemrosesan foto.');
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-    const encode = (type: string, quality: number) => new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, type, quality);
-    });
-    let blob: Blob | null = null;
-    if (supportsWebP) {
-      try { blob = await encode('image/webp', 0.72); } catch { /* Try JPEG below. */ }
+    for (let i = 0; i < ADAPTIVE_PROFILES.length; i++) {
+      const step = ADAPTIVE_PROFILES[i];
+      const scale = Math.min(1, step.maxDim / Math.max(image.naturalWidth, image.naturalHeight));
+      const targetWidth = Math.max(1, Math.round(image.naturalWidth * scale));
+      const targetHeight = Math.max(1, Math.round(image.naturalHeight * scale));
+
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, targetWidth, targetHeight);
+      context.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+      let candidateBlob: Blob | null = null;
+      if (supportsWebP) {
+        try {
+          candidateBlob = await encode(canvas, 'image/webp', step.quality);
+        } catch {
+          candidateBlob = null;
+        }
+      }
+      if (!candidateBlob || candidateBlob.type !== 'image/webp') {
+        candidateBlob = await encode(canvas, 'image/jpeg', step.quality);
+      }
+
+      if (candidateBlob && candidateBlob.size > 0) {
+        if (!bestBlob || candidateBlob.size < bestBlob.size) {
+          bestBlob = candidateBlob;
+          bestMeta = {
+            width: targetWidth,
+            height: targetHeight,
+            quality: step.quality,
+            maxDim: step.maxDim,
+          };
+        }
+
+        // Jika ukuran sudah mencapai target <= 250 KB, stop iterasi
+        if (candidateBlob.size <= TARGET_MAX_BYTES) {
+          break;
+        }
+      }
     }
-    // Check actual MIME too: an unsupported encoder may silently produce PNG.
-    if (!blob || blob.type !== 'image/webp') blob = await encode('image/jpeg', 0.75);
-    if (!blob || !['image/webp', 'image/jpeg'].includes(blob.type)) {
+
+    if (!bestBlob || !['image/webp', 'image/jpeg'].includes(bestBlob.type)) {
       throw new Error('Kompresi foto gagal. Gunakan browser yang mendukung JPEG atau WebP.');
     }
-    if (blob.size === 0 || blob.size > MAX_UPLOAD_BYTES) {
+    if (bestBlob.size === 0 || bestBlob.size > MAX_UPLOAD_BYTES) {
       throw new Error('Foto hasil kompresi harus berukuran lebih dari 0 dan maksimal 5 MB.');
     }
-    return { blob, extension: blob.type === 'image/webp' ? 'webp' : 'jpg', width: canvas.width, height: canvas.height };
+
+    console.log(
+      `[compressPhoto] Final: ${(bestBlob.size / 1024).toFixed(0)} KB, quality=${bestMeta.quality}, maxDim=${bestMeta.maxDim}`
+    );
+
+    return {
+      blob: bestBlob,
+      extension: bestBlob.type === 'image/webp' ? 'webp' : 'jpg',
+      width: bestMeta.width,
+      height: bestMeta.height,
+    };
   } finally {
     URL.revokeObjectURL(sourceUrl);
   }
@@ -107,6 +166,7 @@ export default function SurveyPage() {
   const [reload, setReload] = useState(0);
   const [gps, setGps] = useState<GpsFix | null>(null);
   const [locating, setLocating] = useState(false);
+  const [programType, setProgramType] = useState<ProgramType>('Reguler');
   const [photo, setPhoto] = useState<SurveyPhoto | null>(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [savedPhotoPreview, setSavedPhotoPreview] = useState('');
@@ -136,6 +196,7 @@ export default function SurveyPage() {
   const oldPhotoUrl = matchedParcel?.photo_path
     ? supabase.storage.from(BUCKET).getPublicUrl(matchedParcel.photo_path).data.publicUrl : '';
 
+
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -153,10 +214,9 @@ export default function SurveyPage() {
       try {
         const rows: SurveyParcel[] = [];
         const pageSize = 500;
-        // Read the new columns directly; do not change get_parcels_with_metrics_v2.
         for (let start = 0; ; start += pageSize) {
           const { data, error } = await supabase.from('parcels')
-            .select('id,nib,owner_name,village,dataset_key,is_demo,gps_lat,gps_lng,gps_accuracy_m,photo_path,surveyed_at')
+            .select('id,nib,owner_name,village,dataset_key,is_demo,gps_lat,gps_lng,gps_accuracy_m,photo_path,surveyed_at,program_type')
             .eq('dataset_key', 'dairi-demo').eq('is_demo', true)
             .order('nib').range(start, start + pageSize - 1)
             .abortSignal(controller.signal).returns<SurveyParcel[]>();
@@ -196,10 +256,16 @@ export default function SurveyPage() {
   }
 
   function handleNibChange(event: ChangeEvent<HTMLInputElement>) {
-    setNib(event.target.value);
+    const value = event.target.value;
+    setNib(value);
     clearSavedPhoto();
     setFeedback('');
     setProblem('');
+    const clean = value.trim().toLowerCase();
+    const found = parcels.find((p) => p.nib.toLowerCase() === clean);
+    if (found?.program_type) {
+      setProgramType(found.program_type);
+    }
   }
 
   function captureGps() {
@@ -296,7 +362,7 @@ export default function SurveyPage() {
       const finalLng = (gps && validGps(gps)) ? gps.lng : surveyPolygon.centroid![1];
       const finalAccuracy = (gps && validGps(gps)) ? gps.accuracy : null;
 
-      // Append-only storage: panggil RPC v2 dengan dukungan poligon GeoJSON
+      // Append-only storage: panggil RPC v2 dengan dukungan poligon GeoJSON & tagging program
       const { data, error } = await supabase.rpc('submit_survey_data_v2', {
         p_nib: cleanNib,
         p_lat: finalLat,
@@ -304,6 +370,7 @@ export default function SurveyPage() {
         p_accuracy: finalAccuracy,
         p_photo_path: uploadedPath,
         p_geojson: surveyPolygon.geojson || null,
+        p_program_type: programType,
       });
       if (error) throw error;
       if (alive.current) {
@@ -315,6 +382,7 @@ export default function SurveyPage() {
         setReload((value) => value + 1);
         clearPhoto();
         setGps(null);
+        setProgramType('Reguler');
         setSurveyPolygon({
           geojson: null,
           areaM2: null,
@@ -452,6 +520,28 @@ export default function SurveyPage() {
               ) : cleanNib.length > 0 ? (
                 <p className="text-xs text-amber-700">Ketik minimal 3 karakter untuk NIB.</p>
               ) : null}
+
+              <div className="pt-3 border-t border-slate-100 space-y-1.5">
+                <label htmlFor="survey-program" className="block text-sm font-medium text-slate-700">
+                  Jenis Program
+                </label>
+                <select
+                  id="survey-program"
+                  value={programType}
+                  disabled={busy}
+                  onChange={(e) => setProgramType(e.target.value as ProgramType)}
+                  className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-sm text-slate-900 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all disabled:bg-slate-100 disabled:opacity-60 cursor-pointer"
+                >
+                  <option value="Reguler">📋 Reguler (Rutin / Non-Target Khusus)</option>
+                  <option value="Wakaf">🕌 Wakaf (Tanah Wakaf Keagamaan)</option>
+                  <option value="Rumah Ibadah">🏛️ Rumah Ibadah (Gereja, Masjid, Vihara, Kuil)</option>
+                  <option value="MBR">🏠 MBR (Masyarakat Berpenghasilan Rendah)</option>
+                  <option value="Hibah">🎁 Hibah (Hibah Tanah Pemerintah/Masyarakat)</option>
+                </select>
+                <p className="text-xs text-slate-500">
+                  Pilih klasifikasi program pendaftaran bidang tanah sesuai target sensus Kantah Dairi.
+                </p>
+              </div>
             </section>
 
             <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs space-y-3.5">
