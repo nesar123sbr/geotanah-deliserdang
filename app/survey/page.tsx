@@ -15,7 +15,7 @@ type PendingUpload = { nib: string; blob: Blob; path: string };
 
 const BUCKET = 'parcel-photos';
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
-const buttonClass = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 py-3 text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600';
+const buttonClass = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2';
 
 function messageOf(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
@@ -305,32 +305,61 @@ export default function SurveyPage() {
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:py-10">
       <div className="mx-auto max-w-xl">
-        <Link href="/" className={`${buttonClass} mb-4 border border-slate-200 bg-white text-slate-700 hover:bg-slate-100`}>
-          <ArrowLeft className="h-5 w-5" aria-hidden="true" /> Kembali ke peta
+        <Link 
+          href="/" 
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-xs transition-all duration-150 hover:bg-slate-100 hover:text-slate-900 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 mb-6"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Kembali ke peta
         </Link>
         <header className="mb-6">
-          <p className="text-sm font-semibold uppercase tracking-wider text-emerald-700">GeoTanah Dairi</p>
-          <h1 className="mt-1 text-3xl font-bold">Mode Sensus</h1>
-          <p className="mt-2 text-base text-slate-600">Pilih bidang, ambil lokasi GPS, lalu foto kondisi lapangan.</p>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100/80 border border-emerald-300/80 text-emerald-800 text-xs font-semibold uppercase tracking-wider mb-2.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
+            GeoTanah Dairi · Mode Sensus
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Survei Lapangan</h1>
+          <p className="mt-1.5 text-sm text-slate-600">Daftarkan NIB atau pilih bidang, ambil koordinat GPS terverifikasi, lalu simpan dokumentasi foto.</p>
         </header>
-        <aside className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <strong>Khusus demo.</strong> Foto dan lokasi yang dikirim dapat dibaca publik.
-          Jangan gunakan foto wajah, dokumen pribadi, atau lokasi pribadi.
-          GPS ponsel bukan pengukuran batas kadastral yang sah; poligon bidang tidak diubah.
+        <aside className="mb-6 rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4 text-xs text-amber-900 space-y-1">
+          <p className="font-semibold text-amber-950">Mode Demonstrasi Lapangan</p>
+          <p className="leading-relaxed">
+            Foto dan koordinat yang dikirim akan tersimpan di cloud storage demo publik. Mohon hindari memotret dokumen berdata pribadi atau wajah. Akurasi GPS ponsel bergantung pada visibilitas satelit.
+          </p>
         </aside>
 
         {loading ? (
-          <p role="status" className="rounded-2xl border border-slate-200 bg-white p-6">Memuat daftar bidang demo...</p>
+          <div className="space-y-4" role="status" aria-label="Memuat daftar bidang demo">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
+              <div className="h-5 w-44 bg-slate-200 rounded-lg animate-pulse" />
+              <div className="h-3.5 w-32 bg-slate-100 rounded-md animate-pulse" />
+              <div className="h-12 w-full bg-slate-100 rounded-xl animate-pulse" />
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
+              <div className="h-5 w-36 bg-slate-200 rounded-lg animate-pulse" />
+              <div className="h-3.5 w-60 bg-slate-100 rounded-md animate-pulse" />
+              <div className="h-12 w-full bg-slate-100 rounded-xl animate-pulse" />
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-3">
+              <div className="h-5 w-40 bg-slate-200 rounded-lg animate-pulse" />
+              <div className="h-3.5 w-72 bg-slate-100 rounded-md animate-pulse" />
+              <div className="h-12 w-full bg-slate-100 rounded-xl animate-pulse" />
+            </div>
+          </div>
         ) : loadError ? (
-          <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800">
-            <p>{loadError}</p>
-            <button type="button" onClick={() => { setLoading(true); setLoadError(''); setReload((value) => value + 1); }} className={`${buttonClass} mt-3 bg-white`}>Coba muat lagi</button>
+          <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 space-y-3">
+            <p className="text-sm font-medium">{loadError}</p>
+            <button 
+              type="button" 
+              onClick={() => { setLoading(true); setLoadError(''); setReload((value) => value + 1); }} 
+              className={`${buttonClass} bg-white text-slate-800 border border-red-200 hover:bg-red-100/50`}
+            >
+              Coba muat lagi
+            </button>
           </div>
         ) : (
           <form onSubmit={submitSurvey} className="space-y-5" aria-busy={submitting}>
-            <section className="rounded-2xl border border-slate-200 bg-white p-5">
-              <h2 className="mb-4 text-lg font-bold">1. Nomor Identifikasi Bidang (NIB)</h2>
-              <label htmlFor="survey-nib" className="mb-2 block text-sm font-medium">Ketik atau pilih NIB</label>
+            <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs space-y-3">
+              <h2 className="text-base font-semibold text-slate-900">1. Identifikasi Bidang Tanah (NIB)</h2>
+              <label htmlFor="survey-nib" className="block text-sm font-medium text-slate-700">Ketik atau pilih NIB</label>
               <input
                 id="survey-nib"
                 list="nib-list"
@@ -338,7 +367,7 @@ export default function SurveyPage() {
                 disabled={busy}
                 onChange={handleNibChange}
                 placeholder="Ketik atau pilih NIB..."
-                className="min-h-12 w-full rounded-xl border border-slate-300 px-3 text-base focus:border-emerald-600 focus:outline-none"
+                className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all disabled:bg-slate-100 disabled:opacity-60"
                 autoComplete="off"
               />
               <datalist id="nib-list">
@@ -348,89 +377,146 @@ export default function SurveyPage() {
                   </option>
                 ))}
               </datalist>
+
+              {parcels.length === 0 && (
+                <p className="text-xs text-amber-700">Tidak ada bidang demo tersedia. Anda tetap dapat mendaftarkan NIB baru.</p>
+              )}
+
               {cleanNib.length >= 3 ? (
                 matchedParcel ? (
-                  <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-                    <p className="font-semibold">Ditemukan: {matchedParcel.owner_name} - {matchedParcel.village}</p>
-                    <p className="mt-1">
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3.5 text-xs text-emerald-900 space-y-1">
+                    <p className="font-semibold text-emerald-800 text-sm">Ditemukan: {matchedParcel.owner_name} - {matchedParcel.village}</p>
+                    <p className="text-emerald-700">
                       {matchedParcel.surveyed_at
                         ? `Survei terakhir: ${new Date(matchedParcel.surveyed_at).toLocaleString('id-ID')}`
-                        : 'Belum ada survei tersimpan.'}
+                        : 'Belum ada data survei tersimpan.'}
                     </p>
                     {oldPhotoUrl && (
                       <a
                         href={oldPhotoUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="mt-2 inline-flex min-h-12 items-center font-semibold text-emerald-700 underline"
+                        className="inline-flex min-h-10 items-center font-semibold text-emerald-700 underline hover:text-emerald-800 pt-1"
                       >
-                        Lihat foto tersimpan (tetap disimpan)
+                        Lihat foto tersimpan terdahulu ↗
                       </a>
                     )}
                   </div>
                 ) : (
-                  <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
-                    <p className="font-semibold">NIB baru - akan didaftarkan sebagai bidang demo</p>
-                    <p className="mt-1">Bidang baru akan didaftarkan sebagai demo dairi.</p>
+                  <div className="rounded-xl border border-blue-200 bg-blue-50/80 p-3.5 text-xs text-blue-900 space-y-1">
+                    <p className="font-semibold text-blue-800 text-sm">NIB baru - akan didaftarkan sebagai bidang demo</p>
+                    <p className="text-blue-700">Bidang baru akan didaftarkan sebagai demo dairi saat survei disimpan.</p>
                   </div>
                 )
               ) : cleanNib.length > 0 ? (
-                <p className="mt-2 text-xs text-amber-700">Ketik minimal 3 karakter untuk NIB.</p>
+                <p className="text-xs text-amber-700">Ketik minimal 3 karakter untuk NIB.</p>
               ) : null}
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5">
-              <h2 className="mb-2 text-lg font-bold">2. Ambil lokasi GPS</h2>
-              <p className="mb-4 text-sm text-slate-600">Berdiri di lokasi bidang pada tempat terbuka, lalu izinkan akses lokasi.</p>
-              <button type="button" onClick={captureGps} disabled={busy}
-                className={`${buttonClass} w-full border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100`}>
-                {locating ? <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" /> : <LocateFixed className="h-5 w-5" aria-hidden="true" />}
-                {locating ? 'Mencari GPS (maks. 15 detik)...' : gps ? 'Ambil ulang lokasi GPS' : 'Ambil lokasi GPS'}
+            <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs space-y-3">
+              <h2 className="text-base font-semibold text-slate-900">2. Ambil Lokasi GPS</h2>
+              <p className="text-xs text-slate-500">Berdiri di batas bidang pada tempat terbuka, lalu tekan tombol untuk mencatat koordinat satelit.</p>
+              <button 
+                type="button" 
+                onClick={captureGps} 
+                disabled={busy}
+                className={`${buttonClass} w-full border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400`}
+              >
+                {locating ? <LoaderCircle className="h-5 w-5 animate-spin text-emerald-700" aria-hidden="true" /> : <LocateFixed className="h-5 w-5 text-emerald-700" aria-hidden="true" />}
+                {locating ? 'Mencari sinyal GPS (maks. 15 detik)...' : gps ? 'Ambil ulang lokasi GPS' : 'Ambil lokasi GPS sekarang'}
               </button>
-              <div aria-live="polite" className="mt-3 text-sm text-slate-700">
-                {gps ? <><p>Latitude: {gps.lat.toFixed(7)} · Longitude: {gps.lng.toFixed(7)}</p><p className="mt-1 font-semibold">Akurasi: ±{gps.accuracy.toFixed(2)} meter</p>{gps.accuracy > 50 && <p className="mt-2 text-amber-800">Akurasi masih rendah. Disarankan mengambil ulang GPS.</p>}</> : <p>Belum ada lokasi GPS baru.</p>}
+              <div aria-live="polite" className="text-xs text-slate-600">
+                {gps ? (
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 font-mono space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-sans">Latitude:</span>
+                      <span className="text-slate-800 font-semibold">{gps.lat.toFixed(7)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-sans">Longitude:</span>
+                      <span className="text-slate-800 font-semibold">{gps.lng.toFixed(7)}</span>
+                    </div>
+                    <div className="flex justify-between pt-1 border-t border-slate-200">
+                      <span className="text-slate-500 font-sans">Akurasi Perangkat:</span>
+                      <span className="text-emerald-700 font-bold">±{gps.accuracy.toFixed(2)} meter</span>
+                    </div>
+                    {gps.accuracy > 50 && (
+                      <p className="pt-1 text-[11px] text-amber-700 font-sans">
+                        Akurasi masih rendah (&gt;50m). Disarankan mengambil ulang di tempat terbuka.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-slate-400 italic">Belum ada lokasi GPS baru tercatat.</p>
+                )}
               </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-5">
-              <h2 className="mb-2 text-lg font-bold">3. Ambil foto lapangan</h2>
-              <p className="mb-4 text-sm text-slate-600">Foto diperkecil otomatis hingga sisi terpanjang 1280 piksel. WebP digunakan jika tersedia; jika tidak, JPEG.</p>
-              <label htmlFor="survey-photo" className="mb-2 flex items-center gap-2 text-sm font-semibold"><Camera className="h-5 w-5" aria-hidden="true" /> Buka kamera atau pilih foto</label>
-              <input id="survey-photo" type="file" accept="image/*" capture="environment" disabled={busy}
-                onChange={choosePhoto} className="min-h-12 w-full rounded-xl border border-slate-300 p-2 text-sm file:mr-3 file:min-h-12 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:font-semibold file:text-emerald-800 disabled:opacity-50" />
-              <p role="status" className="mt-2 text-sm text-slate-600">{processing ? 'Menyiapkan foto...' : photo ? `${photo.extension.toUpperCase()} · ${photo.width} × ${photo.height} piksel · ${(photo.blob.size / 1024).toFixed(0)} KB` : 'Foto hasil kompresi maksimal 5 MB. Sumber maksimal 25 MB.'}</p>
-              {previewUrl && photo && <Image src={previewUrl} alt="Pratinjau foto lapangan yang akan dikirim" width={photo.width} height={photo.height} unoptimized className="mt-4 max-h-80 w-full rounded-xl bg-slate-100 object-contain" />}
+            <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs space-y-3">
+              <h2 className="text-base font-semibold text-slate-900">3. Ambil Foto Lapangan</h2>
+              <p className="text-xs text-slate-500">Foto dikompresi otomatis (maks. 1280px) menggunakan format WebP/JPEG hemat kuota.</p>
+              <label htmlFor="survey-photo" className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
+                <Camera className="h-4 w-4 text-emerald-600" aria-hidden="true" /> Buka kamera atau pilih berkas foto
+              </label>
+              <input 
+                id="survey-photo" 
+                type="file" 
+                accept="image/*" 
+                capture="environment" 
+                disabled={busy}
+                onChange={choosePhoto} 
+                className="min-h-12 w-full rounded-xl border border-slate-300 p-2 text-xs file:mr-3 file:min-h-10 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:font-semibold file:text-emerald-800 hover:file:bg-emerald-100 disabled:opacity-50 transition-all cursor-pointer" 
+              />
+              <p role="status" className="text-xs text-slate-500">
+                {processing ? 'Menyiapkan dan mengompresi foto...' : photo ? `${photo.extension.toUpperCase()} · ${photo.width} × ${photo.height} piksel · ${(photo.blob.size / 1024).toFixed(0)} KB` : 'Foto hasil kompresi maksimal 5 MB. Sumber maksimal 25 MB.'}
+              </p>
+              {previewUrl && photo && (
+                <div className="relative mt-3 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+                  <Image 
+                    src={previewUrl} 
+                    alt="Pratinjau foto lapangan yang akan dikirim" 
+                    width={photo.width} 
+                    height={photo.height} 
+                    unoptimized 
+                    className="max-h-80 w-full object-contain" 
+                  />
+                </div>
+              )}
             </section>
 
-            {problem && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{problem}</p>}
-            {feedback && <p role="status" className="flex gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"><CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />{feedback}</p>}
-            <button type="submit" disabled={cleanNib.length < 3 || !gps || !photo || busy}
-              className={`${buttonClass} w-full bg-emerald-700 text-white hover:bg-emerald-800`}>
+            {problem && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs font-medium text-red-800">{problem}</p>}
+            {feedback && <p role="status" className="flex gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-medium text-emerald-800"><CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />{feedback}</p>}
+            
+            <button 
+              type="submit" 
+              disabled={cleanNib.length < 3 || !gps || !photo || busy}
+              className={`${buttonClass} w-full bg-emerald-700 text-white shadow-md shadow-emerald-700/20 hover:bg-emerald-800 active:scale-[0.98]`}
+            >
               {submitting && <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />}
-              {submitting ? 'Mengunggah dan menyimpan...' : 'Simpan data survei'}
+              {submitting ? 'Mengunggah foto dan menyimpan data...' : 'Simpan Data Survei'}
             </button>
 
             {savedPhotoPreview && (
-              <div role="status" className="flex items-center gap-3 rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-emerald-900 shadow-sm">
+              <div role="status" className="flex items-center gap-3.5 rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4 text-emerald-950 shadow-xs">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={savedPhotoPreview}
                   alt="Foto yang baru tersimpan"
-                  className="h-14 w-14 rounded-lg object-cover border border-emerald-300 shrink-0 bg-white"
+                  className="h-14 w-14 rounded-xl object-cover border border-emerald-300 shrink-0 bg-white"
                 />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-800">
+                  <div className="flex items-center gap-1.5 font-bold text-sm text-emerald-800">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                     <span>Foto tersimpan ✓</span>
                   </div>
-                  <p className="text-[11px] text-emerald-700 mt-0.5 truncate">
-                    Foto lapangan berhasil disimpan untuk NIB {cleanNib}
+                  <p className="text-xs text-emerald-700 mt-0.5 truncate">
+                    Foto lapangan berhasil disimpan untuk NIB <span className="font-mono font-semibold">{cleanNib}</span>
                   </p>
                 </div>
               </div>
             )}
 
-            <p className="pb-6 text-center text-xs text-slate-600">Pastikan NIB benar sebelum menyimpan. Foto lama tidak dihapus.</p>
+            <p className="pb-6 text-center text-xs text-slate-500">Pastikan NIB benar sebelum menyimpan. Foto lama tidak dihapus.</p>
           </form>
         )}
       </div>
