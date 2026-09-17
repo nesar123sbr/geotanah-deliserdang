@@ -10,6 +10,7 @@ import {
   Download, FileCode, Search, Camera, ExternalLink, MapPin, RotateCcw
 } from 'lucide-react';
 import ExportModal from '@/components/ExportModal';
+import { executeExportGeodatabase } from '@/lib/exportGeodatabase';
 
 const ParcelMap = dynamic(() => import('@/components/ParcelMap'), {
   ssr: false,
@@ -211,20 +212,33 @@ export default function Dashboard() {
     }
   };
 
+  const exportGeodatabase = async (includePhotos: boolean) => {
+    await executeExportGeodatabase({
+      includePhotos,
+      onProgress: (text, percent) => {
+        setExportProgressText(text);
+        setExportProgressPercent(percent);
+      },
+      triggerDownload: true,
+    });
+  };
+
   const handleStartExport = async (includePhotos: boolean) => {
     setIsExporting(true);
-    setExportProgressPercent(20);
-    setExportProgressText(includePhotos ? 'Menyiapkan data spasial & antrean foto...' : 'Menyiapkan data geodatabase...');
+    setExportProgressPercent(5);
+    setExportProgressText('Menyiapkan proses ekspor geodatabase...');
     try {
-      console.log('[ExportGeodatabase] Ready for Lapis 4, includePhotos:', includePhotos);
-      await new Promise(r => setTimeout(r, 600));
-      setExportProgressPercent(100);
-      setExportProgressText('Siap untuk pembuatan ZIP (Lapis 4).');
+      await exportGeodatabase(includePhotos);
+      // Jeda 1 detik agar pengguna dapat melihat progress 100% sebelum modal tertutup otomatis
+      await new Promise((r) => setTimeout(r, 1000));
+      setIsExportModalOpen(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert('Terjadi kendala saat mengekspor geodatabase: ' + msg);
     } finally {
-      setTimeout(() => {
-        setIsExporting(false);
-        setIsExportModalOpen(false);
-      }, 500);
+      setIsExporting(false);
+      setExportProgressPercent(0);
+      setExportProgressText('');
     }
   };
 
