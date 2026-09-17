@@ -7,7 +7,7 @@ import { supabase, type ParcelData } from '@/lib/supabase';
 import { 
   ShieldCheck, AlertTriangle, Layers, 
   Compass, Activity, CheckCircle2, ChevronRight, HelpCircle,
-  Download, FileCode, Search, Camera, ExternalLink, MapPin
+  Download, FileCode, Search, Camera, ExternalLink, MapPin, RotateCcw
 } from 'lucide-react';
 
 const ParcelMap = dynamic(() => import('@/components/ParcelMap'), {
@@ -23,6 +23,8 @@ export default function Dashboard() {
   const [parcels, setParcels] = useState<ParcelData[]>([]);
   const [selectedParcel, setSelectedParcel] = useState<ParcelData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
   const [filterTab, setFilterTab] = useState<'SEMUA' | 'KW1' | 'KW456' | 'CONFLICT'>('SEMUA');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -36,39 +38,67 @@ export default function Dashboard() {
   }, [searchQuery]);
 
   useEffect(() => {
-    async function fetchParcels() {
+    let cancelled = false;
+
+    async function loadData() {
       const { data, error } = await supabase.rpc('get_parcels_with_metrics_v2', {
         p_dataset_key: 'dairi-demo'
       });
 
-      // Ambil juga kolom survei dari tabel parcels agar photo_path & gps selalu terjamin terisi
-      const { data: surveyData } = await supabase
-        .from('parcels')
-        .select('id, gps_lat, gps_lng, gps_accuracy_m, photo_path, surveyed_at')
-        .eq('dataset_key', 'dairi-demo');
+      if (cancelled) return;
 
       if (error) {
         console.error('Error memuat data persil Dairi:', error);
+        setLoadError(error.message || 'Gagal memuat data persil dari server.');
       } else if (data) {
-        const surveyMap = new Map((surveyData || []).map(s => [s.id, s]));
-        const enriched = (data as ParcelData[]).map((p: ParcelData) => {
-          const s = surveyMap.get(p.id);
-          return {
-            ...p,
-            gps_lat: p.gps_lat ?? s?.gps_lat ?? null,
-            gps_lng: p.gps_lng ?? s?.gps_lng ?? null,
-            gps_accuracy_m: p.gps_accuracy_m ?? s?.gps_accuracy_m ?? null,
-            photo_path: p.photo_path ?? s?.photo_path ?? null,
-            surveyed_at: p.surveyed_at ?? s?.surveyed_at ?? null,
-          };
-        });
-        setParcels(enriched);
-        if (enriched.length > 0) setSelectedParcel(enriched[0]);
+        setLoadError(null);
+        const rows = data as ParcelData[];
+        setParcels(rows);
+        if (rows.length > 0) {
+          setSelectedParcel(prev => {
+            if (!prev) return rows[0];
+            return rows.find(p => p.id === prev.id) ?? rows[0];
+          });
+        }
       }
       setLoading(false);
     }
-    fetchParcels();
-  }, []);
+
+    void loadData();
+
+    // Supabase Realtime subscription untuk mendeteksi penambahan / pembaruan persil dari lapangan
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      channel = supabase
+        .channel('parcels-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'parcels',
+            filter: 'dataset_key=eq.dairi-demo',
+          },
+          () => {
+            void loadData();
+          }
+        )
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR') {
+            console.warn('Realtime subscription tidak aktif atau gagal terhubung. Fallback ke mode polling/manual.');
+          }
+        });
+    } catch (err) {
+      console.warn('Gagal menginisialisasi Realtime channel:', err);
+    }
+
+    return () => {
+      cancelled = true;
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
+    };
+  }, [reload]);
 
   const totalParcels = parcels.length;
   const kw1Count = parcels.filter(p => p.kkp_category === 'KW 1').length;
@@ -197,6 +227,28 @@ export default function Dashboard() {
 
       <main className="flex-1 p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 max-w-[1700px] w-full mx-auto">
         <div className="lg:col-span-3 flex flex-col gap-4">
+          {loadError && (
+            <div role="alert" className="rounded-2xl border border-rose-800/80 bg-rose-950/70 p-4 text-xs text-rose-200 shadow-sm space-y-2.5">
+              <div className="flex items-center gap-2 font-semibold text-rose-300">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400" />
+                <span>Gagal Memuat Data Persil</span>
+              </div>
+              <p className="text-[11px] text-rose-300/80 leading-relaxed">{loadError}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoading(true);
+                  setLoadError(null);
+                  setReload((prev) => prev + 1);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-900/80 hover:bg-rose-800 border border-rose-700/80 text-white font-medium active:scale-95 transition-all text-xs"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span>Coba Lagi</span>
+              </button>
+            </div>
+          )}
+
           {loading ? (
             <div className="grid grid-cols-2 gap-2.5">
               {[1, 2, 3, 4].map((i) => (
@@ -527,24 +579,32 @@ export default function Dashboard() {
                     </div>
                   )}
 
-                  {/* Metadata GPS jika tersedia */}
+                  {/* Metadata GPS / Centroid jika tersedia */}
                   {selectedParcel.gps_lat !== null && selectedParcel.gps_lat !== undefined && selectedParcel.gps_lng !== null && selectedParcel.gps_lng !== undefined && (
                     <div className="pt-2 border-t border-slate-800/80 font-mono text-[10px] space-y-1.5 text-slate-400">
                       <div className="flex items-center justify-between">
                         <span className="flex items-center gap-1 font-sans text-slate-500">
                           <MapPin className="h-3 w-3 text-emerald-400" />
-                          Koordinat GPS:
+                          {selectedParcel.gps_accuracy_m !== null && selectedParcel.gps_accuracy_m !== undefined
+                            ? 'Koordinat GPS:'
+                            : 'Centroid Poligon:'}
                         </span>
                         <span className="text-slate-200">
                           {Number(selectedParcel.gps_lat).toFixed(6)}, {Number(selectedParcel.gps_lng).toFixed(6)}
                         </span>
                       </div>
-                      {selectedParcel.gps_accuracy_m !== null && selectedParcel.gps_accuracy_m !== undefined && (
-                        <div className="flex items-center justify-between">
-                          <span className="font-sans text-slate-500">Akurasi Perangkat:</span>
+                      <div className="flex items-center justify-between">
+                        <span className="font-sans text-slate-500">
+                          {selectedParcel.gps_accuracy_m !== null && selectedParcel.gps_accuracy_m !== undefined
+                            ? 'Akurasi Perangkat:'
+                            : 'Status GPS:'}
+                        </span>
+                        {selectedParcel.gps_accuracy_m !== null && selectedParcel.gps_accuracy_m !== undefined ? (
                           <span className="text-emerald-400">±{Number(selectedParcel.gps_accuracy_m).toFixed(2)} m</span>
-                        </div>
-                      )}
+                        ) : (
+                          <span className="text-amber-400 font-sans">Tanpa GPS (Delineasi Poligon)</span>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -552,13 +612,21 @@ export default function Dashboard() {
                 <div className="space-y-2 pt-1">
                   <button 
                     onClick={() => handleExportCadCsv(selectedParcel)}
-                    className="w-full min-h-11 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700/90 border border-slate-700 text-slate-200 font-medium text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                    disabled={!selectedParcel?.geojson}
+                    title={!selectedParcel?.geojson ? 'Hanya tersedia untuk bidang dengan poligon' : 'Export koordinat patok batas ke format CSV/AutoCAD'}
+                    className={`w-full min-h-11 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700/90 border border-slate-700 text-slate-200 font-medium text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                      !selectedParcel?.geojson ? 'opacity-50 cursor-not-allowed active:scale-100 hover:bg-slate-800' : ''
+                    }`}
                   >
                     <Download className="h-3.5 w-3.5 text-emerald-400" /> Export Patok (AutoCAD / CSV)
                   </button>
                   <button 
                     onClick={() => handleExportGeoJson(selectedParcel)}
-                    className="w-full min-h-11 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-sm shadow-emerald-950/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                    disabled={!selectedParcel?.geojson}
+                    title={!selectedParcel?.geojson ? 'Hanya tersedia untuk bidang dengan poligon' : 'Export layer geometri ke format GeoJSON/QGIS'}
+                    className={`w-full min-h-11 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-sm shadow-emerald-950/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                      !selectedParcel?.geojson ? 'opacity-50 cursor-not-allowed active:scale-100 hover:bg-emerald-600' : ''
+                    }`}
                   >
                     <FileCode className="h-3.5 w-3.5" /> Export Layer (QGIS / GeoJSON)
                   </button>

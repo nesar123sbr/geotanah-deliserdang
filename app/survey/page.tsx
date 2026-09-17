@@ -294,7 +294,7 @@ export default function SurveyPage() {
       // Tentukan koordinat lat/lng dan akurasi: prioritaskan GPS jika diambil, fallback ke centroid poligon
       const finalLat = (gps && validGps(gps)) ? gps.lat : surveyPolygon.centroid![0];
       const finalLng = (gps && validGps(gps)) ? gps.lng : surveyPolygon.centroid![1];
-      const finalAccuracy = (gps && validGps(gps)) ? gps.accuracy : 5.0;
+      const finalAccuracy = (gps && validGps(gps)) ? gps.accuracy : null;
 
       // Append-only storage: panggil RPC v2 dengan dukungan poligon GeoJSON
       const { data, error } = await supabase.rpc('submit_survey_data_v2', {

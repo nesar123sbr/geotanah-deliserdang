@@ -10,6 +10,8 @@ BEGIN;
 CREATE OR REPLACE FUNCTION public.handle_parcels_updated_at()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, public
 AS $$
 BEGIN
   NEW.updated_at = NOW();
@@ -29,8 +31,8 @@ CREATE OR REPLACE FUNCTION public.submit_survey_data_v2(
   p_nib TEXT,
   p_lat NUMERIC,
   p_lng NUMERIC,
-  p_accuracy NUMERIC,
-  p_photo_path TEXT,
+  p_accuracy NUMERIC DEFAULT NULL,
+  p_photo_path TEXT DEFAULT '',
   p_geojson TEXT DEFAULT NULL
 )
 RETURNS JSONB
@@ -81,8 +83,8 @@ BEGIN
   IF v_centroid_lng IS NULL OR v_centroid_lng NOT BETWEEN -180 AND 180 THEN
     RAISE EXCEPTION 'Longitude harus berada antara -180 dan 180.' USING ERRCODE = '22023';
   END IF;
-  IF p_accuracy IS NULL OR p_accuracy NOT BETWEEN 0 AND 1000 THEN
-    RAISE EXCEPTION 'Akurasi GPS harus berada antara 0 dan 1000 meter.' USING ERRCODE = '22023';
+  IF p_accuracy IS NOT NULL AND (p_accuracy < 0 OR p_accuracy > 1000) THEN
+    RAISE EXCEPTION 'Akurasi GPS harus berada antara 0 dan 1000 meter atau kosong.' USING ERRCODE = '22023';
   END IF;
 
   -- 3. Coba UPDATE jika NIB sudah terdaftar pada dataset demo
@@ -91,6 +93,7 @@ BEGIN
       gps_lng = v_centroid_lng,
       gps_accuracy_m = p_accuracy,
       photo_path = v_photo_path,
+      geom = COALESCE(v_geom, p.geom),
       -- Kategori KKP dipertahankan dari data yuridis KKP resmi; tidak otomatis diubah jadi KW 1
       kkp_category = COALESCE(p.kkp_category, 'KW 4'),
       -- Luas yuridis tidak boleh ditimpa luas spasial hasil digitasi
