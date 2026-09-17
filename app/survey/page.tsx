@@ -30,6 +30,11 @@ function validGps({ lat, lng, accuracy }: GpsFix): boolean {
     && Number.isFinite(accuracy) && accuracy >= 0 && accuracy <= 1000;
 }
 
+function createSurveyPhotoPath(nib: string, extension: string): string {
+  const sanitizedNib = nib.replace(/[^a-zA-Z0-9]/g, '');
+  return `surveys/${sanitizedNib}_${Date.now()}.${extension}`;
+}
+
 async function compressPhoto(file: File): Promise<SurveyPhoto> {
   if (!file.type.startsWith('image/')) throw new Error('Pilih berkas foto yang valid.');
   if (file.size > 25 * 1024 * 1024) throw new Error('Foto sumber maksimal 25 MB. Pilih foto yang lebih kecil.');
@@ -85,8 +90,7 @@ async function compressPhoto(file: File): Promise<SurveyPhoto> {
 
 export default function SurveyPage() {
   const [parcels, setParcels] = useState<SurveyParcel[]>([]);
-  const [selectedId, setSelectedId] = useState('');
-  const [query, setQuery] = useState('');
+  const [nib, setNib] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [reload, setReload] = useState(0);
@@ -105,14 +109,13 @@ export default function SurveyPage() {
   const submitLock = useRef(false);
   const pendingUpload = useRef<PendingUpload | null>(null);
 
-  const selectedParcel = parcels.find((parcel) => parcel.id === selectedId) ?? null;
-  const normalizedQuery = query.trim().toLowerCase();
-  const choices = parcels.filter((parcel) => parcel.id === selectedId
-    || parcel.nib.toLowerCase().includes(normalizedQuery)
-    || parcel.owner_name.toLowerCase().includes(normalizedQuery));
+  const cleanNib = nib.trim();
+  const matchedParcel = cleanNib
+    ? parcels.find((parcel) => parcel.nib.toLowerCase() === cleanNib.toLowerCase()) ?? null
+    : null;
   const busy = locating || processing || submitting;
-  const oldPhotoUrl = selectedParcel?.photo_path
-    ? supabase.storage.from(BUCKET).getPublicUrl(selectedParcel.photo_path).data.publicUrl : '';
+  const oldPhotoUrl = matchedParcel?.photo_path
+    ? supabase.storage.from(BUCKET).getPublicUrl(matchedParcel.photo_path).data.publicUrl : '';
 
   useEffect(() => {
     alive.current = true;
@@ -164,20 +167,14 @@ export default function SurveyPage() {
     setPhoto(null);
   }
 
-  function selectParcel(id: string) {
-    if (submitLock.current) return;
-    gpsRequest.current += 1;
-    setSelectedId(id);
-    setGps(null);
-    setLocating(false);
-    setProcessing(false);
+  function handleNibChange(event: ChangeEvent<HTMLInputElement>) {
+    setNib(event.target.value);
     setFeedback('');
     setProblem('');
-    clearPhoto();
   }
 
   function captureGps() {
-    if (!selectedParcel || busy || submitLock.current) return;
+    if (busy || submitLock.current) return;
     setProblem('');
     setFeedback('');
     setGps(null);
@@ -211,7 +208,7 @@ export default function SurveyPage() {
   async function choosePhoto(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!file || !selectedParcel || submitLock.current) return;
+    if (!file || submitLock.current || busy) return;
     clearPhoto();
     const request = ++photoRequest.current;
     setProcessing(true);
@@ -234,13 +231,8 @@ export default function SurveyPage() {
   async function submitSurvey(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitLock.current || busy) return;
-    if (!selectedParcel || selectedParcel.dataset_key !== 'dairi-demo' || !selectedParcel.is_demo) {
-      setProblem('Pilih bidang dari dataset demo Dairi terlebih dahulu.');
-      return;
-    }
-    const nib = selectedParcel.nib.trim();
-    if (nib.length < 3 || !gps || !validGps(gps) || !photo) {
-      setProblem('Lengkapi NIB, ambil GPS yang valid, dan pilih foto terlebih dahulu.');
+    if (cleanNib.length < 3 || !gps || !validGps(gps) || !photo) {
+      setProblem('Lengkapi NIB (minimal 3 karakter), ambil GPS yang valid, dan pilih foto terlebih dahulu.');
       return;
     }
     submitLock.current = true;
@@ -250,10 +242,10 @@ export default function SurveyPage() {
     let uploadedPath = '';
     try {
       const pending = pendingUpload.current;
-      if (pending?.nib === nib && pending.blob === photo.blob) {
+      if (pending?.nib === cleanNib && pending.blob === photo.blob) {
         uploadedPath = pending.path;
       } else {
-        const path = `surveys/${nib.replace(/[^a-zA-Z0-9]/g, '')}_${Date.now()}.${photo.extension}`;
+        const path = createSurveyPhotoPath(cleanNib, photo.extension);
         // ArrayBuffer makes the SDK send Cache-Control: max-age=31536000, immutable.
         const { error } = await supabase.storage.from(BUCKET).upload(path, await photo.blob.arrayBuffer(), {
           contentType: photo.blob.type,
@@ -262,23 +254,20 @@ export default function SurveyPage() {
         });
         if (error) throw error;
         uploadedPath = path;
-        pendingUpload.current = { nib, blob: photo.blob, path };
+        pendingUpload.current = { nib: cleanNib, blob: photo.blob, path };
       }
-      // Append-only storage: never remove selectedParcel.photo_path.
-      const { data, error } = await supabase.rpc('submit_survey_data', {
-        p_nib: nib, p_lat: gps.lat, p_lng: gps.lng,
+      // Append-only storage: never remove existing photo_path.
+      const { error } = await supabase.rpc('submit_survey_data', {
+        p_nib: cleanNib, p_lat: gps.lat, p_lng: gps.lng,
         p_accuracy: gps.accuracy, p_photo_path: uploadedPath,
       });
       if (error) throw error;
       if (alive.current) {
-        setParcels((current) => current.map((parcel) => parcel.id === selectedParcel.id
-          ? { ...parcel, gps_lat: Number(data.gps_lat), gps_lng: Number(data.gps_lng),
-            gps_accuracy_m: Number(data.gps_accuracy_m), photo_path: uploadedPath, surveyed_at: data.surveyed_at }
-          : parcel));
+        setReload((value) => value + 1);
         clearPhoto();
         setGps(null);
-        setFeedback(`Survei NIB ${nib} berhasil disimpan. Foto sebelumnya tetap tersimpan.`);
-        window.alert(`Survei NIB ${nib} berhasil disimpan.`);
+        setFeedback(`Survei NIB ${cleanNib} berhasil disimpan. Foto sebelumnya tetap tersimpan.`);
+        window.alert(`Survei NIB ${cleanNib} berhasil disimpan.`);
       }
     } catch (error) {
       if (alive.current) {
@@ -319,38 +308,63 @@ export default function SurveyPage() {
             <p>{loadError}</p>
             <button type="button" onClick={() => { setLoading(true); setLoadError(''); setReload((value) => value + 1); }} className={`${buttonClass} mt-3 bg-white`}>Coba muat lagi</button>
           </div>
-        ) : parcels.length === 0 ? (
-          <p role="status" className="rounded-2xl border border-slate-200 bg-white p-6">Tidak ada bidang demo yang dapat disurvei. Hubungi pengelola data.</p>
         ) : (
           <form onSubmit={submitSurvey} className="space-y-5" aria-busy={submitting}>
             <section className="rounded-2xl border border-slate-200 bg-white p-5">
-              <h2 className="mb-4 text-lg font-bold">1. Pilih bidang tanah</h2>
-              <label htmlFor="survey-search" className="mb-2 block text-sm font-medium">Cari NIB atau nama pemilik</label>
-              <input id="survey-search" type="search" value={query} disabled={busy}
-                onChange={(event) => setQuery(event.target.value)} placeholder="Ketik NIB atau nama..."
-                className="mb-4 min-h-12 w-full rounded-xl border border-slate-300 px-3 text-base focus:border-emerald-600 focus:outline-none" />
-              <label htmlFor="survey-parcel" className="mb-2 block text-sm font-medium">Bidang yang akan disurvei</label>
-              <select id="survey-parcel" value={selectedId} disabled={busy} required
-                onChange={(event) => selectParcel(event.target.value)}
-                className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 text-base focus:border-emerald-600 focus:outline-none">
-                <option value="">Pilih satu bidang...</option>
-                {choices.map((parcel) => <option key={parcel.id} value={parcel.id}>{parcel.nib} — {parcel.owner_name}</option>)}
-              </select>
-              {choices.length === 0 && <p className="mt-2 text-sm text-slate-600">Tidak ditemukan. Coba kata pencarian lain.</p>}
-              {selectedParcel && (
-                <div className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
-                  <p className="font-semibold">{selectedParcel.owner_name} · {selectedParcel.village}</p>
-                  <p className="mt-1">NIB: {selectedParcel.nib}</p>
-                  <p className="mt-1">{selectedParcel.surveyed_at ? `Survei terakhir: ${new Date(selectedParcel.surveyed_at).toLocaleString('id-ID')}` : 'Belum ada survei tersimpan.'}</p>
-                  {oldPhotoUrl && <a href={oldPhotoUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-12 items-center font-semibold text-emerald-700 underline">Lihat foto tersimpan (tetap disimpan)</a>}
-                </div>
-              )}
+              <h2 className="mb-4 text-lg font-bold">1. Nomor Identifikasi Bidang (NIB)</h2>
+              <label htmlFor="survey-nib" className="mb-2 block text-sm font-medium">Ketik atau pilih NIB</label>
+              <input
+                id="survey-nib"
+                list="nib-list"
+                value={nib}
+                disabled={busy}
+                onChange={handleNibChange}
+                placeholder="Ketik atau pilih NIB..."
+                className="min-h-12 w-full rounded-xl border border-slate-300 px-3 text-base focus:border-emerald-600 focus:outline-none"
+                autoComplete="off"
+              />
+              <datalist id="nib-list">
+                {parcels.map((p) => (
+                  <option key={p.id} value={p.nib}>
+                    {p.owner_name} · {p.village}
+                  </option>
+                ))}
+              </datalist>
+              {cleanNib.length >= 3 ? (
+                matchedParcel ? (
+                  <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                    <p className="font-semibold">Ditemukan: {matchedParcel.owner_name} - {matchedParcel.village}</p>
+                    <p className="mt-1">
+                      {matchedParcel.surveyed_at
+                        ? `Survei terakhir: ${new Date(matchedParcel.surveyed_at).toLocaleString('id-ID')}`
+                        : 'Belum ada survei tersimpan.'}
+                    </p>
+                    {oldPhotoUrl && (
+                      <a
+                        href={oldPhotoUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex min-h-12 items-center font-semibold text-emerald-700 underline"
+                      >
+                        Lihat foto tersimpan (tetap disimpan)
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                    <p className="font-semibold">NIB baru - akan didaftarkan sebagai bidang demo</p>
+                    <p className="mt-1">Bidang baru akan didaftarkan sebagai demo dairi.</p>
+                  </div>
+                )
+              ) : cleanNib.length > 0 ? (
+                <p className="mt-2 text-xs text-amber-700">Ketik minimal 3 karakter untuk NIB.</p>
+              ) : null}
             </section>
 
             <section className="rounded-2xl border border-slate-200 bg-white p-5">
               <h2 className="mb-2 text-lg font-bold">2. Ambil lokasi GPS</h2>
               <p className="mb-4 text-sm text-slate-600">Berdiri di lokasi bidang pada tempat terbuka, lalu izinkan akses lokasi.</p>
-              <button type="button" onClick={captureGps} disabled={!selectedParcel || busy}
+              <button type="button" onClick={captureGps} disabled={busy}
                 className={`${buttonClass} w-full border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100`}>
                 {locating ? <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" /> : <LocateFixed className="h-5 w-5" aria-hidden="true" />}
                 {locating ? 'Mencari GPS (maks. 15 detik)...' : gps ? 'Ambil ulang lokasi GPS' : 'Ambil lokasi GPS'}
@@ -364,7 +378,7 @@ export default function SurveyPage() {
               <h2 className="mb-2 text-lg font-bold">3. Ambil foto lapangan</h2>
               <p className="mb-4 text-sm text-slate-600">Foto diperkecil otomatis hingga sisi terpanjang 1280 piksel. WebP digunakan jika tersedia; jika tidak, JPEG.</p>
               <label htmlFor="survey-photo" className="mb-2 flex items-center gap-2 text-sm font-semibold"><Camera className="h-5 w-5" aria-hidden="true" /> Buka kamera atau pilih foto</label>
-              <input id="survey-photo" type="file" accept="image/*" capture="environment" disabled={!selectedParcel || busy}
+              <input id="survey-photo" type="file" accept="image/*" capture="environment" disabled={busy}
                 onChange={choosePhoto} className="min-h-12 w-full rounded-xl border border-slate-300 p-2 text-sm file:mr-3 file:min-h-12 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:font-semibold file:text-emerald-800 disabled:opacity-50" />
               <p role="status" className="mt-2 text-sm text-slate-600">{processing ? 'Menyiapkan foto...' : photo ? `${photo.extension.toUpperCase()} · ${photo.width} × ${photo.height} piksel · ${(photo.blob.size / 1024).toFixed(0)} KB` : 'Foto hasil kompresi maksimal 5 MB. Sumber maksimal 25 MB.'}</p>
               {previewUrl && photo && <Image src={previewUrl} alt="Pratinjau foto lapangan yang akan dikirim" width={photo.width} height={photo.height} unoptimized className="mt-4 max-h-80 w-full rounded-xl bg-slate-100 object-contain" />}
@@ -372,7 +386,7 @@ export default function SurveyPage() {
 
             {problem && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{problem}</p>}
             {feedback && <p role="status" className="flex gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"><CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />{feedback}</p>}
-            <button type="submit" disabled={!selectedParcel || !gps || !photo || busy}
+            <button type="submit" disabled={cleanNib.length < 3 || !gps || !photo || busy}
               className={`${buttonClass} w-full bg-emerald-700 text-white hover:bg-emerald-800`}>
               {submitting && <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />}
               {submitting ? 'Mengunggah dan menyimpan...' : 'Simpan data survei'}
