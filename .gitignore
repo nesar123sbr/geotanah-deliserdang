@@ -42,3 +42,7 @@ next-env.d.ts
 
 # scratch / temp scripts
 scratch/
+
+# database backups
+/backups/
+*.sql.backup
