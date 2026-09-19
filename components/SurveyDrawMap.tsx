@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Polygon, useMap, useMapEvents, LayersControl } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -17,6 +17,7 @@ export interface SurveyDrawMapProps {
   gps: { lat: number; lng: number; accuracy: number } | null;
   onPolygonChange: (result: SurveyPolygonResult) => void;
   disabled?: boolean;
+  importedPoints?: [number, number][] | null;
 }
 
 /**
@@ -92,17 +93,24 @@ function MapEvents({
 function MapController({
   flyTarget,
   onFlyDone,
+  boundsTarget,
+  onBoundsDone,
 }: {
   flyTarget: [number, number] | null;
   onFlyDone: () => void;
+  boundsTarget: [number, number][] | null;
+  onBoundsDone: () => void;
 }) {
   const map = useMap();
   useEffect(() => {
-    if (flyTarget) {
+    if (boundsTarget && boundsTarget.length >= 3) {
+      map.fitBounds(L.latLngBounds(boundsTarget), { padding: [30, 30], maxZoom: 18 });
+      onBoundsDone();
+    } else if (flyTarget) {
       map.flyTo(flyTarget, 18, { duration: 0.8 });
       onFlyDone();
     }
-  }, [map, flyTarget, onFlyDone]);
+  }, [map, flyTarget, boundsTarget, onFlyDone, onBoundsDone]);
   return null;
 }
 
@@ -155,16 +163,37 @@ export default function SurveyDrawMap({
   gps,
   onPolygonChange,
   disabled = false,
+  importedPoints = null,
 }: SurveyDrawMapProps) {
   const [mounted, setMounted] = useState(false);
   const [points, setPoints] = useState<[number, number][]>([]);
   const [isLocked, setIsLocked] = useState(false);
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
+  const [boundsTarget, setBoundsTarget] = useState<[number, number][] | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
+
+  const prevImportedRef = useRef<[number, number][] | null>(null);
+
+  // Tangani poligon yang diimpor dari berkas GPS (Avenza/GPX/KML)
+  useEffect(() => {
+    if (importedPoints && importedPoints !== prevImportedRef.current && importedPoints.length >= 3) {
+      prevImportedRef.current = importedPoints;
+      setPoints(importedPoints);
+      setIsLocked(true);
+      setBoundsTarget(importedPoints);
+      const centroid = calculateCentroid(importedPoints);
+      onPolygonChange({
+        geojson: pointsToGeoJson(importedPoints),
+        areaM2: calculateSphericalPolygonArea(importedPoints),
+        points: importedPoints,
+        centroid,
+      });
+    }
+  }, [importedPoints, onPolygonChange]);
 
   // Hitung luas real-time saat titik bertambah
   const areaM2 = useMemo(() => {
@@ -307,7 +336,12 @@ export default function SurveyDrawMap({
           preferCanvas={true}
           className="h-full w-full"
         >
-          <MapController flyTarget={flyTarget} onFlyDone={handleFlyDone} />
+          <MapController
+            flyTarget={flyTarget}
+            onFlyDone={handleFlyDone}
+            boundsTarget={boundsTarget}
+            onBoundsDone={() => setBoundsTarget(null)}
+          />
           <MapEvents onMapClick={handleMapClick} isLocked={isLocked || disabled} />
 
           <LayersControl position="bottomleft">

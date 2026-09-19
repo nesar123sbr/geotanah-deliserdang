@@ -1,31 +1,112 @@
 -- ==============================================================================
--- Skrip RPC submit_survey_data_v2 & Trigger Auto Updated_At
--- Mendukung Delineasi Poligon GeoJSON dan Titik GPS Lapangan
+-- GeoTanah Dairi - Skrip Database & RPC Komprehensif (v2)
+-- Sinkronisasi 100% dengan Live Database Supabase
 -- File: supabase_rpc_fix_v2.sql
 -- ==============================================================================
 
 BEGIN;
 
--- 1. Trigger BEFORE UPDATE untuk auto-isi updated_at = NOW() pada public.parcels
-CREATE OR REPLACE FUNCTION public.handle_parcels_updated_at()
+-- ==============================================================================
+-- 1. TABEL PROFILES & RLS POLICIES
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL DEFAULT 'surveyor' CHECK (role IN ('admin', 'surveyor', 'validator')),
+  full_name TEXT NOT NULL,
+  nip TEXT,
+  phone TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'Profiles viewable by authenticated users'
+  ) THEN
+    CREATE POLICY "Profiles viewable by authenticated users"
+      ON public.profiles FOR SELECT TO authenticated
+      USING (true);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'Users can update own profile'
+  ) THEN
+    CREATE POLICY "Users can update own profile"
+      ON public.profiles FOR UPDATE TO authenticated
+      USING (auth.uid() = id)
+      WITH CHECK (auth.uid() = id);
+  END IF;
+END $$;
+
+-- Trigger pembuatan profil otomatis saat user baru mendaftar di auth.users
+CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
-SECURITY INVOKER
-SET search_path = pg_catalog, public
-AS $$
+SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'public'
+AS $function$
 BEGIN
-  NEW.updated_at = NOW();
+  INSERT INTO public.profiles (id, full_name, role, nip, phone, is_active)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
+    COALESCE(NEW.raw_user_meta_data->>'role', 'surveyor'),
+    NEW.raw_user_meta_data->>'nip',
+    NEW.raw_user_meta_data->>'phone',
+    true
+  )
+  ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
-$$;
+$function$;
 
-DROP TRIGGER IF EXISTS trg_parcels_updated_at ON public.parcels;
-CREATE TRIGGER trg_parcels_updated_at
-BEFORE UPDATE ON public.parcels
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_parcels_updated_at();
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();
 
--- 2. Kolom dan Indeks program_type (Wakaf, Rumah Ibadah, MBR, Hibah, Reguler)
+-- ==============================================================================
+-- 2. TABEL AUDIT LOG & RLS POLICIES
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  table_name TEXT NOT NULL,
+  record_id UUID NOT NULL,
+  action TEXT NOT NULL CHECK (action IN ('INSERT', 'UPDATE', 'DELETE')),
+  old_data JSONB,
+  new_data JSONB,
+  changed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE schemaname = 'public' AND tablename = 'audit_log' AND policyname = 'Audit log viewable by admin only'
+  ) THEN
+    CREATE POLICY "Audit log viewable by admin only"
+      ON public.audit_log FOR SELECT TO authenticated
+      USING (
+        EXISTS (
+          SELECT 1 FROM public.profiles
+          WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
+        )
+      );
+  END IF;
+END $$;
+
+-- ==============================================================================
+-- 3. MODIFIKASI TABEL PARCELS (KOLOM, INDEKS & AUDIT TRAIL)
+-- ==============================================================================
+-- A. Kolom program_type
 ALTER TABLE public.parcels
   ADD COLUMN IF NOT EXISTS program_type TEXT
   CHECK (program_type IS NULL OR program_type IN
@@ -37,7 +118,105 @@ UPDATE public.parcels SET program_type = 'Reguler'
 CREATE INDEX IF NOT EXISTS idx_parcels_program
   ON public.parcels (program_type);
 
--- 3. RPC get_parcels_with_metrics_v2 (dengan return program_type)
+-- B. Kolom audit relasi auth.users
+ALTER TABLE public.parcels
+  ADD COLUMN IF NOT EXISTS created_by_user UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS updated_by_user UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+
+-- C. Trigger BEFORE UPDATE untuk auto-isi updated_at = NOW()
+CREATE OR REPLACE FUNCTION public.handle_parcels_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path TO 'pg_catalog', 'public'
+AS $function$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS trg_parcels_updated_at ON public.parcels;
+CREATE TRIGGER trg_parcels_updated_at
+  BEFORE UPDATE ON public.parcels
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_parcels_updated_at();
+
+-- D. Trigger Audit Log trg_parcels_audit_log pada public.parcels
+CREATE OR REPLACE FUNCTION public.handle_parcels_audit_log()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'public'
+AS $function$
+DECLARE
+  v_user_id UUID;
+  v_record_id UUID;
+BEGIN
+  v_user_id := auth.uid();
+  
+  IF TG_OP = 'INSERT' THEN
+    v_record_id := NEW.id;
+    IF v_user_id IS NULL THEN
+      v_user_id := NEW.created_by_user;
+    END IF;
+    
+    INSERT INTO public.audit_log (table_name, record_id, action, old_data, new_data, changed_by, changed_at)
+    VALUES (
+      TG_TABLE_NAME,
+      v_record_id,
+      'INSERT',
+      NULL,
+      to_jsonb(NEW) - 'geom',
+      v_user_id,
+      NOW()
+    );
+    RETURN NEW;
+    
+  ELSIF TG_OP = 'UPDATE' THEN
+    v_record_id := NEW.id;
+    IF v_user_id IS NULL THEN
+      v_user_id := NEW.updated_by_user;
+    END IF;
+
+    INSERT INTO public.audit_log (table_name, record_id, action, old_data, new_data, changed_by, changed_at)
+    VALUES (
+      TG_TABLE_NAME,
+      v_record_id,
+      'UPDATE',
+      to_jsonb(OLD) - 'geom',
+      to_jsonb(NEW) - 'geom',
+      v_user_id,
+      NOW()
+    );
+    RETURN NEW;
+
+  ELSIF TG_OP = 'DELETE' THEN
+    v_record_id := OLD.id;
+    INSERT INTO public.audit_log (table_name, record_id, action, old_data, new_data, changed_by, changed_at)
+    VALUES (
+      TG_TABLE_NAME,
+      v_record_id,
+      'DELETE',
+      to_jsonb(OLD) - 'geom',
+      NULL,
+      v_user_id,
+      NOW()
+    );
+    RETURN OLD;
+  END IF;
+  RETURN NULL;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS trg_parcels_audit_log ON public.parcels;
+CREATE TRIGGER trg_parcels_audit_log
+  AFTER INSERT OR UPDATE OR DELETE ON public.parcels
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_parcels_audit_log();
+
+-- ==============================================================================
+-- 4. RPC get_parcels_with_metrics_v2
+-- ==============================================================================
 DROP FUNCTION IF EXISTS public.get_parcels_with_metrics_v2(text);
 
 CREATE OR REPLACE FUNCTION public.get_parcels_with_metrics_v2(p_dataset_key text DEFAULT 'dairi-demo'::text)
@@ -128,35 +307,37 @@ $function$;
 REVOKE ALL ON FUNCTION public.get_parcels_with_metrics_v2(text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.get_parcels_with_metrics_v2(text) TO anon, authenticated;
 
--- 4. RPC submit_survey_data_v2 (dengan parameter p_program_type)
+-- ==============================================================================
+-- 5. RPC submit_survey_data_v2
+-- ==============================================================================
 DROP FUNCTION IF EXISTS public.submit_survey_data_v2(TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT);
 DROP FUNCTION IF EXISTS public.submit_survey_data_v2(TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, TEXT);
 
 CREATE OR REPLACE FUNCTION public.submit_survey_data_v2(
-  p_nib TEXT,
-  p_lat NUMERIC,
-  p_lng NUMERIC,
-  p_accuracy NUMERIC DEFAULT NULL,
-  p_photo_path TEXT DEFAULT '',
-  p_geojson TEXT DEFAULT NULL,
-  p_program_type TEXT DEFAULT 'Reguler'
+  p_nib text,
+  p_lat numeric,
+  p_lng numeric,
+  p_accuracy numeric DEFAULT NULL::numeric,
+  p_photo_path text DEFAULT ''::text,
+  p_geojson text DEFAULT NULL::text,
+  p_program_type text DEFAULT 'Reguler'::text
 )
-RETURNS JSONB
+RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, extensions
-AS $$
+SET search_path TO 'pg_catalog', 'public', 'extensions'
+AS $function$
 DECLARE
   v_nib TEXT := btrim(p_nib);
   v_photo_path TEXT := btrim(p_photo_path);
   v_program_type TEXT := COALESCE(NULLIF(btrim(p_program_type), ''), 'Reguler');
   v_geom extensions.geography(Polygon, 4326) := NULL;
   v_spatial_area NUMERIC := NULL;
-  v_centroid_lat NUMERIC := p_lat;
-  v_centroid_lng NUMERIC := p_lng;
+  v_centroid_lat NUMERIC := NULL;
+  v_centroid_lng NUMERIC := NULL;
+  v_effective_user UUID := auth.uid();
   v_result JSONB;
 BEGIN
-  -- 1. Validasi Input Parameter
   IF v_nib IS NULL OR char_length(v_nib) < 3 THEN
     RAISE EXCEPTION 'NIB wajib diisi, minimal 3 karakter.' USING ERRCODE = '22023';
   END IF;
@@ -167,16 +348,11 @@ BEGIN
     RAISE EXCEPTION 'Jenis program tidak valid: %', v_program_type USING ERRCODE = '22023';
   END IF;
 
-  -- 2. Parsing GeoJSON Poligon jika ada
   IF p_geojson IS NOT NULL AND btrim(p_geojson) <> '' THEN
     BEGIN
-      -- Konversi GeoJSON ke geography(Polygon, 4326)
       v_geom := extensions.ST_SetSRID(extensions.ST_GeomFromGeoJSON(p_geojson), 4326)::geography;
-      
-      -- Hitung luas spasial poligon dalam meter persegi
       v_spatial_area := ROUND(extensions.ST_Area(v_geom, true)::numeric, 2);
 
-      -- Jika p_lat / p_lng tidak diberikan atau bernilai 0, hitung centroid dari poligon
       IF (v_centroid_lat IS NULL OR v_centroid_lng IS NULL) THEN
         v_centroid_lat := extensions.ST_Y(extensions.ST_Centroid(v_geom::geometry))::numeric;
         v_centroid_lng := extensions.ST_X(extensions.ST_Centroid(v_geom::geometry))::numeric;
@@ -186,7 +362,12 @@ BEGIN
     END;
   END IF;
 
-  -- Validasi koordinat GPS (wajib ada lat/lng baik dari parameter maupun dari centroid poligon)
+  -- Kalau polygon tidak ada tapi GPS ada, pakai GPS
+  IF v_centroid_lat IS NULL THEN
+    v_centroid_lat := p_lat;
+    v_centroid_lng := p_lng;
+  END IF;
+
   IF v_centroid_lat IS NULL OR v_centroid_lat NOT BETWEEN -90 AND 90 THEN
     RAISE EXCEPTION 'Latitude harus berada antara -90 dan 90.' USING ERRCODE = '22023';
   END IF;
@@ -197,7 +378,6 @@ BEGIN
     RAISE EXCEPTION 'Akurasi GPS harus berada antara 0 dan 1000 meter atau kosong.' USING ERRCODE = '22023';
   END IF;
 
-  -- 3. Coba UPDATE jika NIB sudah terdaftar pada dataset demo
   UPDATE public.parcels AS p
   SET gps_lat = v_centroid_lat,
       gps_lng = v_centroid_lng,
@@ -205,11 +385,10 @@ BEGIN
       photo_path = v_photo_path,
       geom = COALESCE(v_geom, p.geom),
       program_type = v_program_type,
-      -- Kategori KKP dipertahankan dari data yuridis KKP resmi; tidak otomatis diubah jadi KW 1
       kkp_category = COALESCE(p.kkp_category, 'KW 4'),
-      -- Luas yuridis tidak boleh ditimpa luas spasial hasil digitasi
       legal_area_m2 = COALESCE(p.legal_area_m2, 0.01),
       geometry_source = 'survei',
+      updated_by_user = v_effective_user,
       surveyed_at = NOW(),
       updated_at = NOW()
   WHERE p.nib = v_nib
@@ -233,7 +412,6 @@ BEGIN
     'is_new', false
   ) INTO v_result;
 
-  -- 4. Jika NIB belum ada, INSERT sebagai bidang baru (demo Dairi)
   IF NOT FOUND THEN
     INSERT INTO public.parcels (
       nib,
@@ -254,6 +432,8 @@ BEGIN
       kkp_category,
       hak_type,
       program_type,
+      created_by_user,
+      updated_by_user,
       surveyed_at,
       created_at,
       updated_at
@@ -262,7 +442,7 @@ BEGIN
       'Bidang Baru (Demo Survei)',
       'Sidikalang',
       'Sidikalang Kota',
-      0.01, -- Luas yuridis indikatif/minimal (belum ada Surat Ukur definitif dari warkah)
+      0.01,
       v_geom,
       'Perlu Verifikasi',
       CASE 
@@ -276,9 +456,11 @@ BEGIN
       v_centroid_lng,
       p_accuracy,
       v_photo_path,
-      'KW 4', -- Kategori KKP default konservatif: belum terdaftar di peta pendaftaran KKP resmi
+      'KW 4',
       'Hak Milik',
       v_program_type,
+      v_effective_user,
+      v_effective_user,
       NOW(),
       NOW(),
       NOW()
@@ -302,7 +484,7 @@ BEGIN
 
   RETURN v_result;
 END;
-$$;
+$function$;
 
 -- Izin Eksekusi untuk anonymous dan authenticated users
 REVOKE ALL ON FUNCTION public.submit_survey_data_v2(TEXT, NUMERIC, NUMERIC, NUMERIC, TEXT, TEXT, TEXT)
@@ -311,3 +493,4 @@ GRANT EXECUTE ON FUNCTION public.submit_survey_data_v2(TEXT, NUMERIC, NUMERIC, N
   TO anon, authenticated;
 
 COMMIT;
+

@@ -4,9 +4,10 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'r
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowLeft, Camera, CheckCircle2, LocateFixed, LoaderCircle } from 'lucide-react';
+import { ArrowLeft, Camera, CheckCircle2, LocateFixed, LoaderCircle, FileUp, AlertCircle } from 'lucide-react';
 import { supabase, type ParcelData, type ProgramType } from '@/lib/supabase';
 import type { SurveyPolygonResult } from '@/components/SurveyDrawMap';
+import { parseGeoFile, formatAreaM2 } from '@/lib/parseGeoFile';
 
 const SurveyDrawMap = dynamic(() => import('@/components/SurveyDrawMap'), {
   ssr: false,
@@ -176,6 +177,14 @@ export default function SurveyPage() {
     points: [],
     centroid: null,
   });
+  const [importedPoints, setImportedPoints] = useState<[number, number][] | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importNotice, setImportNotice] = useState<{
+    type: 'success' | 'error';
+    message: string;
+    details?: string;
+  } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [processing, setProcessing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -267,6 +276,60 @@ export default function SurveyPage() {
       setProgramType(found.program_type);
     }
   }
+
+  const handleImportGeoFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    setImportNotice(null);
+
+    try {
+      const result = await parseGeoFile(file);
+      setImportedPoints(result.polygon);
+
+      // Auto-fill NIB dari metadata properties berkas jika ada
+      const props = result.properties;
+      const nibCandidate =
+        props.nib ||
+        props.NIB ||
+        props.Nib ||
+        props.name ||
+        props.Name ||
+        props.title ||
+        props.Title ||
+        props.id ||
+        props.ID;
+
+      let filledNibText = '';
+      if (nibCandidate && typeof nibCandidate === 'string' && nibCandidate.trim().length >= 3) {
+        const cleanVal = nibCandidate.trim();
+        setNib(cleanVal);
+        clearSavedPhoto();
+        const found = parcels.find((p) => p.nib.toLowerCase() === cleanVal.toLowerCase());
+        if (found?.program_type) {
+          setProgramType(found.program_type);
+        }
+        filledNibText = `NIB "${cleanVal}" otomatis terisi dari berkas.`;
+      }
+
+      setImportNotice({
+        type: 'success',
+        message: `Berhasil mengimpor poligon batas (${result.format.toUpperCase()})`,
+        details: `${result.polygon.length} patok terpasang · Luas: ${formatAreaM2(result.areaM2)} ${filledNibText ? `· ${filledNibText}` : ''}`,
+      });
+    } catch (err) {
+      setImportNotice({
+        type: 'error',
+        message: messageOf(err),
+      });
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   function captureGps() {
     if (busy || submitLock.current) return;
@@ -563,7 +626,70 @@ export default function SurveyPage() {
                 gps={gps}
                 onPolygonChange={setSurveyPolygon}
                 disabled={busy}
+                importedPoints={importedPoints}
               />
+
+              {/* Tombol & Uploader Import File GPS (Avenza / Locus / GPS Handheld) */}
+              <div className="pt-2 space-y-2.5">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".geojson,.json,.gpx,.kml"
+                  disabled={busy || importing}
+                  onChange={handleImportGeoFile}
+                  className="hidden"
+                  id="survey-geo-file-input"
+                />
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-semibold text-slate-800">
+                      Punya file batas dari Avenza Maps atau GPS?
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      Mendukung format GeoJSON, GPX, atau KML (maks. 5 MB).
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busy || importing}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`${buttonClass} border border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-50 hover:border-emerald-400 text-xs py-2.5 px-3.5 shrink-0 shadow-xs`}
+                  >
+                    {importing ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin text-emerald-700" />
+                    ) : (
+                      <FileUp className="h-4 w-4 text-emerald-700" />
+                    )}
+                    <span>{importing ? 'Membaca Berkas...' : 'Import File GPS (GeoJSON/GPX/KML)'}</span>
+                  </button>
+                </div>
+
+                {importNotice && (
+                  <div
+                    role="alert"
+                    className={`rounded-xl p-3 text-xs border transition-all animate-in fade-in duration-200 ${
+                      importNotice.type === 'success'
+                        ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                        : 'border-red-200 bg-red-50 text-red-900'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      {importNotice.type === 'success' ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                      )}
+                      <div>
+                        <p className="font-semibold">{importNotice.message}</p>
+                        {importNotice.details && (
+                          <p className="text-[11px] opacity-90 mt-0.5">{importNotice.details}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </section>
 
             <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs space-y-3">
