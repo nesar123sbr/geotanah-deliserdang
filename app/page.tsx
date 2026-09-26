@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { supabase, type ParcelData } from '@/lib/supabase';
+import { supabase, type ParcelData, parsePhotoPaths } from '@/lib/supabase';
 import { 
   ShieldCheck, AlertTriangle, Layers, 
   Compass, Activity, CheckCircle2, ChevronRight, HelpCircle,
-  Download, FileCode, Search, Camera, ExternalLink, MapPin, RotateCcw
+  Download, FileCode, Search, Camera, ExternalLink, MapPin, RotateCcw,
+  Trash2, LoaderCircle, LogIn, LogOut, User
 } from 'lucide-react';
 import ExportModal from '@/components/ExportModal';
+import AuthModal from '@/components/AuthModal';
 import { executeExportGeodatabase } from '@/lib/exportGeodatabase';
 
 const ParcelMap = dynamic(() => import('@/components/ParcelMap'), {
@@ -35,6 +37,10 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
+  const [currentUserRole, setCurrentUserRole] = useState<'admin' | 'validator' | 'surveyor' | 'viewer' | null>(null);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [filterTab, setFilterTab] = useState<'SEMUA' | 'KW1' | 'KW456' | 'CONFLICT'>('SEMUA');
   const [programFilter, setProgramFilter] = useState<'ALL' | 'Reguler' | 'Wakaf' | 'Rumah Ibadah' | 'MBR' | 'Hibah'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -115,15 +121,77 @@ export default function Dashboard() {
     };
   }, [reload]);
 
+  // Deteksi sesi autentikasi dan role pengguna dari tabel public.profiles
+  useEffect(() => {
+    async function checkUserRole() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setCurrentUserEmail(user.email ?? null);
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+          if (profile?.role) {
+            setCurrentUserRole(profile.role);
+            return;
+          }
+          if (user.user_metadata?.role) {
+            setCurrentUserRole(user.user_metadata.role);
+            return;
+          }
+          setCurrentUserRole('surveyor');
+        } else {
+          setCurrentUserEmail(null);
+          setCurrentUserRole(null);
+        }
+      } catch (err) {
+        console.warn('Gagal membaca role pengguna:', err);
+      }
+    }
+    void checkUserRole();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setCurrentUserEmail(session.user.email ?? null);
+      } else {
+        setCurrentUserEmail(null);
+        setCurrentUserRole(null);
+      }
+      void checkUserRole();
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setCurrentUserEmail(null);
+    setCurrentUserRole(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('geotanah_role');
+    }
+    window.alert('Anda telah berhasil keluar (logout).');
+  };
+
+  const isAdmin = currentUserRole === 'admin' || (typeof window !== 'undefined' && localStorage.getItem('geotanah_role') === 'admin');
+
   const totalParcels = parcels.length;
-  const kw1Count = parcels.filter(p => p.kkp_category === 'KW 1').length;
-  const kw456Count = parcels.filter(p => 
-    p.kkp_category ? ['KW 4', 'KW 5', 'KW 6'].includes(p.kkp_category) : false
-  ).length;
-  const conflictCount = parcels.filter(p => p.is_overlapping === true || p.status === 'Tumpang Tindih').length;
+  const kw1Count = useMemo(() => parcels.filter(p => p.kkp_category === 'KW 1').length, [parcels]);
+  const kw456Count = useMemo(() => 
+    parcels.filter(p => p.kkp_category ? ['KW 4', 'KW 5', 'KW 6'].includes(p.kkp_category) : false).length,
+    [parcels]
+  );
+  const conflictCount = useMemo(() => 
+    parcels.filter(p => p.is_overlapping === true || p.status === 'Tumpang Tindih').length,
+    [parcels]
+  );
 
   // Logika Filter Gabungan (Pencarian + Kategori Tab KKP + Filter Program)
-  const filteredParcels = parcels.filter((p) => {
+  const filteredParcels = useMemo(() => parcels.filter((p) => {
     let matchTab = true;
     if (filterTab === 'KW1') {
       matchTab = p.kkp_category === 'KW 1';
@@ -145,7 +213,7 @@ export default function Dashboard() {
     }
 
     return matchTab && matchProgram && matchSearch;
-  });
+  }), [parcels, filterTab, programFilter, debouncedQuery]);
 
   const handleExportCadCsv = (parcel: ParcelData) => {
     if (!parcel.geojson) return;
@@ -209,6 +277,76 @@ export default function Dashboard() {
       URL.revokeObjectURL(url);
     } catch {
       alert('Gagal memproses berkas GeoJSON.');
+    }
+  };
+
+  const handleDeleteParcel = async (parcel: ParcelData) => {
+    if (!parcel || isDeleting) return;
+
+    const confirmed = window.confirm(
+      `PERINGATAN ADMIN:\nYakin ingin menghapus NIB ${parcel.nib} (${parcel.owner_name})?\n\nSemua data spasial di database DAN seluruh berkas foto + detail_lokasi.txt di Cloud Storage akan DIHAPUS PERMANEN untuk mengosongkan storage.`
+    );
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      // 1. Ekstrak nama folder storage dari owner_name & nib
+      const sanitize = (str: string) => str.trim().replace(/[\/\\?%*:|"<>]/g, '_').replace(/\s+/g, '_').replace(/_+/g, '_');
+      const folderName = `${sanitize(parcel.owner_name)}_${sanitize(parcel.nib)}`;
+
+      // 2. Lacak seluruh berkas di dalam folder storage tersebut
+      const { data: fileList, error: listError } = await supabase.storage
+        .from('parcel-photos')
+        .list(folderName);
+
+      if (listError) {
+        console.warn('[handleDeleteParcel] List storage warning:', listError);
+      }
+
+      const filesToRemove: string[] = [];
+      if (fileList && fileList.length > 0) {
+        fileList.forEach((file) => {
+          filesToRemove.push(`${folderName}/${file.name}`);
+        });
+      }
+
+      // Masukkan juga path spesifik yang tercatat di kolom photo_path (termasuk comma-separated atau legacy)
+      if (parcel.photo_path) {
+        const legacyPaths = parsePhotoPaths(parcel.photo_path);
+        legacyPaths.forEach((lp) => {
+          if (!filesToRemove.includes(lp)) filesToRemove.push(lp);
+        });
+      }
+
+      // 3. Hapus bersih seluruh berkas dari bucket Supabase Storage
+      if (filesToRemove.length > 0) {
+        const { error: storageDelError } = await supabase.storage
+          .from('parcel-photos')
+          .remove(filesToRemove);
+        if (storageDelError) {
+          console.warn('Gagal menghapus beberapa berkas storage:', storageDelError);
+        }
+      }
+
+      // 4. Hapus baris data di tabel parcels
+      const { error: dbError } = await supabase
+        .from('parcels')
+        .delete()
+        .eq('id', parcel.id);
+      if (dbError) throw dbError;
+
+      // 5. Perbarui state UI lokal
+      setParcels((prev) => prev.filter((p) => p.id !== parcel.id));
+      if (selectedParcel?.id === parcel.id) {
+        setSelectedParcel(null);
+      }
+
+      window.alert(`Pembersihan Berhasil: NIB ${parcel.nib} dan ${filesToRemove.length} berkas di Cloud Storage berhasil dihapus permanen.`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      window.alert(`Gagal memproses penghapusan: ${msg}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -278,6 +416,39 @@ export default function Dashboard() {
             <Camera className="h-4 w-4" />
             <span>Buka Mode Sensus</span>
           </Link>
+
+          {/* Autentikasi Pengguna & Role Badge */}
+          {currentUserEmail ? (
+            <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-700/90 px-3 py-1.5 rounded-xl text-xs shadow-xs">
+              <User className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+              <span className="text-slate-300 font-mono text-[11px] max-w-[130px] sm:max-w-[180px] truncate" title={currentUserEmail}>
+                {currentUserEmail}
+              </span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                isAdmin ? 'bg-rose-950/90 text-rose-300 border border-rose-800' : 'bg-emerald-950/90 text-emerald-300 border border-emerald-800'
+              }`}>
+                {isAdmin ? 'Admin' : 'Surveyor'}
+              </span>
+              <button
+                type="button"
+                onClick={handleLogout}
+                title="Keluar akun"
+                className="ml-1 text-slate-400 hover:text-rose-400 transition-colors p-1 rounded-lg hover:bg-slate-800 cursor-pointer"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsAuthModalOpen(true)}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700/90 border border-slate-700 px-3.5 text-xs font-semibold text-slate-200 hover:text-white active:scale-[0.98] transition-all cursor-pointer shadow-sm"
+            >
+              <LogIn className="h-4 w-4 text-emerald-400" />
+              <span>Login / Masuk</span>
+            </button>
+          )}
+
           <div className="hidden xl:flex items-center gap-2 bg-slate-800/60 border border-slate-700/80 px-3 py-1.5 rounded-xl text-xs">
             <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-slate-300 font-medium">Kantah Kab. Dairi</span>
@@ -498,6 +669,8 @@ export default function Dashboard() {
             parcels={filteredParcels} 
             selectedParcel={selectedParcel} 
             onSelectParcel={setSelectedParcel} 
+            isAdmin={isAdmin}
+            onDeleteParcel={handleDeleteParcel}
           />
         </div>
 
@@ -756,6 +929,31 @@ export default function Dashboard() {
                   >
                     <FileCode className="h-3.5 w-3.5" /> Export Layer (QGIS / GeoJSON)
                   </button>
+
+                  {/* Tombol Hapus Data Khusus Role Admin */}
+                  {isAdmin && (
+                    <div className="pt-2 border-t border-slate-800/80">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteParcel(selectedParcel)}
+                        disabled={isDeleting}
+                        className="w-full min-h-11 py-2.5 px-3 rounded-xl bg-rose-950/50 hover:bg-rose-900/80 border border-rose-700/80 text-rose-200 hover:text-white font-medium text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        title={`Hapus data NIB ${selectedParcel.nib} dari database (Akses Khusus Admin)`}
+                      >
+                        {isDeleting ? (
+                          <>
+                            <LoaderCircle className="h-3.5 w-3.5 animate-spin text-rose-300" />
+                            <span>Menghapus data persil...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 className="h-3.5 w-3.5 text-rose-400" />
+                            <span>Hapus Data Persil (Admin)</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
               </div>
@@ -782,6 +980,13 @@ export default function Dashboard() {
         progressPercent={exportProgressPercent}
         onClose={() => setIsExportModalOpen(false)}
         onStartExport={handleStartExport}
+      />
+
+      {/* Modal Dialog Autentikasi Pengguna (Login & Register) */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={() => setReload((r) => r + 1)}
       />
     </div>
   );

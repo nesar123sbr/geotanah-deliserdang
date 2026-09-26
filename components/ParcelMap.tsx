@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, GeoJSON, LayersControl, Marker, useMap } from 'react-leaflet';
+import { useEffect, useState, useMemo } from 'react';
+import { MapContainer, TileLayer, GeoJSON, LayersControl, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { ParcelData } from '@/lib/supabase';
@@ -10,6 +10,8 @@ interface MapProps {
   parcels: ParcelData[];
   selectedParcel: ParcelData | null;
   onSelectParcel: (parcel: ParcelData) => void;
+  isAdmin?: boolean;
+  onDeleteParcel?: (parcel: ParcelData) => void;
 }
 
 function MapUpdater({ selectedParcel }: Pick<MapProps, 'selectedParcel'>) {
@@ -75,13 +77,28 @@ function getMarkerIcon(parcel: ParcelData, isSelected: boolean) {
   });
 }
 
-export default function ParcelMap({ parcels, selectedParcel, onSelectParcel }: MapProps) {
+export default function ParcelMap({ parcels, selectedParcel, onSelectParcel, isAdmin, onDeleteParcel }: MapProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
+
+  // Memoize hasil parsing string GeoJSON agar tidak di-parse ulang di setiap frame/re-render
+  const parsedGeoJsonMap = useMemo(() => {
+    const map = new Map<string, GeoJSON.GeoJsonObject>();
+    for (const parcel of parcels) {
+      if (parcel.geojson) {
+        try {
+          map.set(parcel.id, JSON.parse(parcel.geojson));
+        } catch {
+          // Abaikan geometri tidak valid
+        }
+      }
+    }
+    return map;
+  }, [parcels]);
 
   if (!mounted) {
     return (
@@ -130,20 +147,36 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel }: M
 
         {/* Layer 1: Poligon GeoJSON */}
         {parcels.map((parcel) => {
-          if (!parcel.geojson) return null;
-          try {
-            const geojsonObj = JSON.parse(parcel.geojson);
-            return (
-              <GeoJSON
-                key={`poly-${parcel.id}`}
-                data={geojsonObj}
-                style={() => getStyle(parcel)}
-                eventHandlers={{ click: () => onSelectParcel(parcel) }}
-              />
-            );
-          } catch {
-            return null;
-          }
+          const geojsonObj = parsedGeoJsonMap.get(parcel.id);
+          if (!geojsonObj) return null;
+          return (
+            <GeoJSON
+              key={`poly-${parcel.id}`}
+              data={geojsonObj}
+              style={() => getStyle(parcel)}
+              eventHandlers={{ click: () => onSelectParcel(parcel) }}
+              onEachFeature={(_feature, layer) => {
+                if (isAdmin && onDeleteParcel) {
+                  const div = document.createElement('div');
+                  div.className = 'p-1 text-xs space-y-1';
+                  div.innerHTML = `
+                    <div style="font-weight: bold; color: #0f172a; font-family: monospace;">${parcel.nib}</div>
+                    <div style="color: #334155; font-size: 11px;">${parcel.owner_name}</div>
+                    <div style="color: #64748b; font-size: 10px;">${parcel.village}</div>
+                  `;
+                  const btn = document.createElement('button');
+                  btn.textContent = '🗑️ Hapus Data (Admin)';
+                  btn.style.cssText = 'margin-top: 6px; width: 100%; padding: 4px 8px; background: #be123c; color: white; border: none; border-radius: 6px; font-size: 10px; font-weight: 600; cursor: pointer;';
+                  btn.onclick = (e) => {
+                    e.stopPropagation();
+                    onDeleteParcel(parcel);
+                  };
+                  div.appendChild(btn);
+                  layer.bindPopup(div);
+                }
+              }}
+            />
+          );
         })}
 
         {/* Layer 2: Pin Marker untuk persil sensus (geojson kosong tapi koordinat GPS ada) */}
@@ -166,7 +199,27 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel }: M
               eventHandlers={{
                 click: () => onSelectParcel(parcel),
               }}
-            />
+            >
+              <Popup>
+                <div className="p-1 text-xs space-y-1">
+                  <div className="font-bold text-slate-900 font-mono">{parcel.nib}</div>
+                  <div className="text-slate-700 text-[11px]">{parcel.owner_name}</div>
+                  <div className="text-slate-500 text-[10px]">{parcel.village}</div>
+                  {isAdmin && onDeleteParcel && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteParcel(parcel);
+                      }}
+                      className="mt-2 w-full py-1 px-2 bg-rose-700 hover:bg-rose-800 text-white rounded text-[10px] font-semibold flex items-center justify-center gap-1 shadow-xs cursor-pointer"
+                    >
+                      <span>🗑️ Hapus Data (Admin)</span>
+                    </button>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
           );
         })}
       </MapContainer>

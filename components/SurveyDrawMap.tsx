@@ -18,6 +18,7 @@ export interface SurveyDrawMapProps {
   onPolygonChange: (result: SurveyPolygonResult) => void;
   disabled?: boolean;
   importedPoints?: [number, number][] | null;
+  resetKey?: number;
 }
 
 /**
@@ -132,30 +133,23 @@ const gpsDivIcon = L.divIcon({
 });
 
 function createVertexIcon(index: number, isLocked: boolean) {
-  const bg = isLocked ? '#047857' : (index === 0 ? '#059669' : '#10b981');
+  const bg = isLocked ? '#059669' : (index === 0 ? '#f59e0b' : '#10b981');
+  const size = index === 0 ? 10 : 8;
   return L.divIcon({
-    className: 'bg-transparent border-0',
+    className: 'bg-transparent border-0 pointer-events-none',
     html: `
       <div style="
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        width: ${size}px;
+        height: ${size}px;
         background: ${bg};
-        color: #ffffff;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-        font-size: 10px;
-        font-weight: 700;
-        padding: 2px 6px;
-        border-radius: 9999px;
         border: 2px solid #ffffff;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-        transform: translate(-50%, -50%);
-        white-space: nowrap;
-        user-select: none;
-      ">P-${index + 1}</div>
+        border-radius: 50%;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+        pointer-events: none;
+      "></div>
     `,
-    iconSize: [32, 22],
-    iconAnchor: [16, 11],
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
   });
 }
 
@@ -164,6 +158,7 @@ export default function SurveyDrawMap({
   onPolygonChange,
   disabled = false,
   importedPoints = null,
+  resetKey = 0,
 }: SurveyDrawMapProps) {
   const [mounted, setMounted] = useState(false);
   const [points, setPoints] = useState<[number, number][]>([]);
@@ -177,10 +172,25 @@ export default function SurveyDrawMap({
   }, []);
 
   const prevImportedRef = useRef<[number, number][] | null>(null);
+  const prevResetKeyRef = useRef<number>(resetKey);
+
+  // Sinkronisasi reset dari formulir luar (misal setelah sukses submit atau ganti mode)
+  useEffect(() => {
+    if (resetKey !== prevResetKeyRef.current) {
+      prevResetKeyRef.current = resetKey;
+      setPoints([]);
+      setIsLocked(false);
+      prevImportedRef.current = null;
+    }
+  }, [resetKey]);
 
   // Tangani poligon yang diimpor dari berkas GPS (Avenza/GPX/KML)
   useEffect(() => {
-    if (importedPoints && importedPoints !== prevImportedRef.current && importedPoints.length >= 3) {
+    if (!importedPoints) {
+      prevImportedRef.current = null;
+      return;
+    }
+    if (importedPoints !== prevImportedRef.current && importedPoints.length >= 3) {
       prevImportedRef.current = importedPoints;
       setPoints(importedPoints);
       setIsLocked(true);
@@ -201,67 +211,47 @@ export default function SurveyDrawMap({
     return calculateSphericalPolygonArea(points);
   }, [points]);
 
+  // Helper murni untuk sinkronisasi state titik ke parent tanpa side-effect di dalam setState updater
+  const syncPolygonToParent = useCallback((nextPoints: [number, number][]) => {
+    const nextArea = nextPoints.length >= 3 ? calculateSphericalPolygonArea(nextPoints) : null;
+    const centroid = nextPoints.length >= 3 ? calculateCentroid(nextPoints) : null;
+    onPolygonChange({
+      geojson: nextPoints.length >= 3 ? pointsToGeoJson(nextPoints) : null,
+      areaM2: nextArea,
+      points: nextPoints,
+      centroid,
+    });
+  }, [onPolygonChange]);
+
   // Tambah titik patok baru saat klik peta
   const handleMapClick = useCallback((lat: number, lng: number) => {
     if (disabled || isLocked) return;
-    setPoints(prev => {
-      const next = [...prev, [lat, lng] as [number, number]];
-      const nextArea = next.length >= 3 ? calculateSphericalPolygonArea(next) : null;
-      const centroid = next.length >= 3 ? calculateCentroid(next) : null;
-      // Jangan langsung trigger lock, biarkan user menambah titik
-      onPolygonChange({
-        geojson: next.length >= 3 ? pointsToGeoJson(next) : null,
-        areaM2: nextArea,
-        points: next,
-        centroid,
-      });
-      return next;
-    });
-  }, [disabled, isLocked, onPolygonChange]);
+    const next: [number, number][] = [...points, [lat, lng]];
+    setPoints(next);
+    syncPolygonToParent(next);
+  }, [disabled, isLocked, points, syncPolygonToParent]);
 
   // Hapus semua titik (Ulangi)
   const handleReset = useCallback(() => {
     setPoints([]);
     setIsLocked(false);
-    onPolygonChange({
-      geojson: null,
-      areaM2: null,
-      points: [],
-      centroid: null,
-    });
-  }, [onPolygonChange]);
+    syncPolygonToParent([]);
+  }, [syncPolygonToParent]);
 
   // Hapus titik terakhir (Undo)
   const handleUndo = useCallback(() => {
     if (isLocked || points.length === 0) return;
-    setPoints(prev => {
-      const next = prev.slice(0, -1);
-      const nextArea = next.length >= 3 ? calculateSphericalPolygonArea(next) : null;
-      const centroid = next.length >= 3 ? calculateCentroid(next) : null;
-      onPolygonChange({
-        geojson: next.length >= 3 ? pointsToGeoJson(next) : null,
-        areaM2: nextArea,
-        points: next,
-        centroid,
-      });
-      return next;
-    });
-  }, [isLocked, points.length, onPolygonChange]);
+    const next = points.slice(0, -1);
+    setPoints(next);
+    syncPolygonToParent(next);
+  }, [isLocked, points, syncPolygonToParent]);
 
   // Kunci poligon (Selesai)
   const handleLock = useCallback(() => {
     if (points.length < 3) return;
     setIsLocked(true);
-    const geojson = pointsToGeoJson(points);
-    const finalArea = calculateSphericalPolygonArea(points);
-    const centroid = calculateCentroid(points);
-    onPolygonChange({
-      geojson,
-      areaM2: finalArea,
-      points,
-      centroid,
-    });
-  }, [points, onPolygonChange]);
+    syncPolygonToParent(points);
+  }, [points, syncPolygonToParent]);
 
   // Buka kembali kunci poligon (Edit Kembali)
   const handleUnlock = useCallback(() => {
@@ -392,6 +382,7 @@ export default function SurveyDrawMap({
               key={`vertex-${idx}-${pt[0]}-${pt[1]}`}
               position={pt}
               icon={createVertexIcon(idx, isLocked)}
+              interactive={false}
               zIndexOffset={1000 + idx}
             />
           ))}
