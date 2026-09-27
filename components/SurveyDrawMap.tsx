@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Polygon, useMap, useMapEvents, LayersControl } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { RotateCcw, Check, Undo, LocateFixed, Edit3, CheckCircle2 } from 'lucide-react';
+import { RotateCcw, Check, Undo, LocateFixed, Edit3, CheckCircle2, LoaderCircle } from 'lucide-react';
 
 export interface SurveyPolygonResult {
   geojson: string | null;
@@ -115,21 +115,34 @@ function MapController({
   return null;
 }
 
-const gpsDivIcon = L.divIcon({
-  className: 'bg-transparent border-0',
+const pulsingBlueDotIcon = L.divIcon({
+  className: 'bg-transparent border-0 pointer-events-none',
   html: `
-    <div style="
-      position: relative;
-      width: 18px;
-      height: 18px;
-      background: #2563eb;
-      border: 2.5px solid #ffffff;
-      border-radius: 50%;
-      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.35), 0 2px 4px rgba(0,0,0,0.3);
-    "></div>
+    <div style="position: relative; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; pointer-events: none;">
+      <div style="
+        position: absolute;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(37, 99, 235, 0.35);
+        animation: blueDotPulse 2s infinite ease-out;
+        pointer-events: none;
+      "></div>
+      <div style="
+        position: relative;
+        width: 14px;
+        height: 14px;
+        background: #1d4ed8;
+        border: 2.5px solid #ffffff;
+        border-radius: 50%;
+        box-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+        pointer-events: none;
+        z-index: 2;
+      "></div>
+    </div>
   `,
-  iconSize: [18, 18],
-  iconAnchor: [9, 9],
+  iconSize: [36, 36],
+  iconAnchor: [18, 18],
 });
 
 function createVertexIcon(index: number, isLocked: boolean) {
@@ -165,11 +178,41 @@ export default function SurveyDrawMap({
   const [isLocked, setIsLocked] = useState(false);
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
   const [boundsTarget, setBoundsTarget] = useState<[number, number][] | null>(null);
+  const [liveLocation, setLiveLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
+  const [isLocatingLive, setIsLocatingLive] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
+
+  // Pelacakan GPS Geolocation Browser secara Real-Time
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+          setLiveLocation({ lat: latitude, lng: longitude, accuracy });
+        }
+      },
+      (err) => {
+        console.warn('[SurveyDrawMap] Geolocation watch notice:', err.message);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 20000,
+        maximumAge: 3000,
+      }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, []);
+
+  const activePosition = liveLocation || (gps && Number.isFinite(gps.lat) && Number.isFinite(gps.lng) ? gps : null);
 
   const prevImportedRef = useRef<[number, number][] | null>(null);
   const prevResetKeyRef = useRef<number>(resetKey);
@@ -258,12 +301,34 @@ export default function SurveyDrawMap({
     setIsLocked(false);
   }, []);
 
-  // Pusatkan peta ke lokasi GPS surveyor
-  const handleCenterGps = useCallback(() => {
-    if (gps && Number.isFinite(gps.lat) && Number.isFinite(gps.lng)) {
-      setFlyTarget([gps.lat, gps.lng]);
+  // Pusatkan peta ke lokasi GPS surveyor saat ini
+  const handleCenterMyLocation = useCallback(() => {
+    if (activePosition) {
+      setFlyTarget([activePosition.lat, activePosition.lng]);
+      return;
     }
-  }, [gps]);
+
+    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
+      setIsLocatingLive(true);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setIsLocatingLive(false);
+          const { latitude, longitude, accuracy } = pos.coords;
+          if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+            setLiveLocation({ lat: latitude, lng: longitude, accuracy });
+            setFlyTarget([latitude, longitude]);
+          }
+        },
+        (err) => {
+          setIsLocatingLive(false);
+          window.alert(`Gagal mengambil lokasi GPS: ${err.message}. Pastikan izin lokasi aktif di peramban.`);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    } else {
+      window.alert('Fitur geolokasi tidak didukung oleh peramban ini.');
+    }
+  }, [activePosition]);
 
   const handleFlyDone = useCallback(() => {
     setFlyTarget(null);
@@ -277,12 +342,20 @@ export default function SurveyDrawMap({
     );
   }
 
-  const initialCenter: [number, number] = gps && Number.isFinite(gps.lat) && Number.isFinite(gps.lng)
-    ? [gps.lat, gps.lng]
+  const initialCenter: [number, number] = activePosition
+    ? [activePosition.lat, activePosition.lng]
     : [2.7485, 98.3175]; // Sidikalang
 
   return (
     <div className="relative w-full rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shadow-sm">
+      <style>{`
+        @keyframes blueDotPulse {
+          0% { transform: scale(0.4); opacity: 0.9; }
+          70% { transform: scale(1.6); opacity: 0; }
+          100% { transform: scale(1.6); opacity: 0; }
+        }
+      `}</style>
+
       {/* Header Info Bar */}
       <div className="absolute top-3 left-3 right-3 z-[1000] flex flex-wrap items-center justify-between gap-2 pointer-events-none">
         <div className="pointer-events-auto inline-flex items-center gap-2 rounded-xl bg-white/95 backdrop-blur-md px-3 py-1.5 text-xs shadow-md border border-slate-200/80">
@@ -304,17 +377,20 @@ export default function SurveyDrawMap({
           )}
         </div>
 
-        {gps && (
-          <button
-            type="button"
-            onClick={handleCenterGps}
-            className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl bg-white/95 backdrop-blur-md px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:text-emerald-700 hover:bg-white shadow-md border border-slate-200/80 active:scale-95 transition-all"
-            title="Pusatkan peta ke lokasi GPS Anda saat ini"
-          >
-            <LocateFixed className="h-3.5 w-3.5 text-blue-600" />
-            <span>Pusatkan ke GPS</span>
-          </button>
-        )}
+        {/* Tombol Pusatkan ke Lokasi Surveyor */}
+        <button
+          type="button"
+          onClick={handleCenterMyLocation}
+          className="pointer-events-auto inline-flex items-center gap-1.5 rounded-xl bg-white/95 backdrop-blur-md px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-blue-700 hover:bg-white shadow-md border border-slate-200/80 active:scale-95 transition-all cursor-pointer"
+          title="Pusatkan peta ke lokasi GPS Anda saat ini"
+        >
+          {isLocatingLive ? (
+            <LoaderCircle className="h-3.5 w-3.5 animate-spin text-blue-600" />
+          ) : (
+            <LocateFixed className={`h-3.5 w-3.5 ${activePosition ? 'text-blue-600' : 'text-slate-500'}`} />
+          )}
+          <span>{isLocatingLive ? 'Mencari...' : 'Pusatkan ke Lokasi Saya'}</span>
+        </button>
       </div>
 
       {/* Map Container */}
@@ -336,7 +412,7 @@ export default function SurveyDrawMap({
           <MapEvents onMapClick={handleMapClick} isLocked={isLocked || disabled} />
 
           <LayersControl position="bottomleft">
-            <LayersControl.BaseLayer checked name="Google Satellite Hybrid">
+            <LayersControl.BaseLayer checked name="Google Hybrid (Satelit HD + Label)">
               <TileLayer
                 attribution="&copy; Google Maps"
                 url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
@@ -344,7 +420,15 @@ export default function SurveyDrawMap({
                 maxNativeZoom={20}
               />
             </LayersControl.BaseLayer>
-            <LayersControl.BaseLayer name="Vektor Jalan (OSM)">
+            <LayersControl.BaseLayer name="Google Terrain (Topografi)">
+              <TileLayer
+                attribution="&copy; Google Maps"
+                url="https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}"
+                maxZoom={22}
+                maxNativeZoom={20}
+              />
+            </LayersControl.BaseLayer>
+            <LayersControl.BaseLayer name="OpenStreetMap (Vektor)">
               <TileLayer
                 attribution='&copy; OpenStreetMap'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -354,9 +438,14 @@ export default function SurveyDrawMap({
             </LayersControl.BaseLayer>
           </LayersControl>
 
-          {/* Marker Lokasi GPS Surveyor */}
-          {gps && Number.isFinite(gps.lat) && Number.isFinite(gps.lng) && (
-            <Marker position={[gps.lat, gps.lng]} icon={gpsDivIcon} />
+          {/* Marker Titik Biru Berdenyut Posisi Real-Time Surveyor (Google Maps Style) */}
+          {activePosition && (
+            <Marker
+              position={[activePosition.lat, activePosition.lng]}
+              icon={pulsingBlueDotIcon}
+              interactive={false}
+              zIndexOffset={500}
+            />
           )}
 
           {/* Garis Polyline (saat hanya 2 titik) */}

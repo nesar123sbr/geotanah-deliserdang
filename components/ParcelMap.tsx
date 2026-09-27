@@ -132,7 +132,7 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel, isA
         <MapUpdater selectedParcel={selectedParcel} />
         
         <LayersControl position="topright">
-          <LayersControl.BaseLayer checked name="Google Satellite Hybrid">
+          <LayersControl.BaseLayer checked name="Google Hybrid (Satelit HD + Label)">
             <TileLayer
               attribution="&copy; Google Maps"
               url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
@@ -140,7 +140,15 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel, isA
               maxNativeZoom={20}
             />
           </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Vektor Jalan (OSM)">
+          <LayersControl.BaseLayer name="Google Terrain (Topografi)">
+            <TileLayer
+              attribution="&copy; Google Maps"
+              url="https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}"
+              maxZoom={22}
+              maxNativeZoom={20}
+            />
+          </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="OpenStreetMap (Vektor)">
             <TileLayer
               attribution='&copy; OpenStreetMap'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
