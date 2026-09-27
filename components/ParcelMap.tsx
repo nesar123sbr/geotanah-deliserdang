@@ -132,7 +132,7 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel, isA
         <MapUpdater selectedParcel={selectedParcel} />
         
         <LayersControl position="topright">
-          <LayersControl.BaseLayer checked name="Google Hybrid (Satelit HD + Label)">
+          <LayersControl.BaseLayer checked name="Satelit">
             <TileLayer
               attribution="&copy; Google Maps"
               url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
@@ -140,7 +140,7 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel, isA
               maxNativeZoom={20}
             />
           </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="Google Terrain (Topografi)">
+          <LayersControl.BaseLayer name="Topografi">
             <TileLayer
               attribution="&copy; Google Maps"
               url="https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}"
@@ -148,7 +148,7 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel, isA
               maxNativeZoom={20}
             />
           </LayersControl.BaseLayer>
-          <LayersControl.BaseLayer name="OpenStreetMap (Vektor)">
+          <LayersControl.BaseLayer name="Vektor">
             <TileLayer
               attribution='&copy; OpenStreetMap'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -179,7 +179,7 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel, isA
                   `;
                   const btn = document.createElement('button');
                   btn.textContent = '🗑️ Hapus Data (Admin)';
-                  btn.style.cssText = 'margin-top: 6px; width: 100%; padding: 4px 8px; background: #be123c; color: white; border: none; border-radius: 6px; font-size: 10px; font-weight: 600; cursor: pointer;';
+                  btn.style.cssText = 'margin-top: 6px; width: 100%; padding: 6px 10px; background: #f43f5e; color: white; border: none; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 200ms ease;';
                   btn.onclick = (e) => {
                     e.stopPropagation();
                     onDeleteParcel(parcel);
@@ -225,7 +225,7 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel, isA
                         e.stopPropagation();
                         onDeleteParcel(parcel);
                       }}
-                      className="mt-2 w-full py-1 px-2 bg-rose-700 hover:bg-rose-800 text-white rounded text-[10px] font-semibold flex items-center justify-center gap-1 shadow-xs cursor-pointer"
+                      className="mt-2 w-full py-1.5 px-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg text-[11px] font-semibold flex items-center justify-center gap-1 shadow-xs cursor-pointer transition-all duration-200 hover:opacity-90 active:scale-[0.97]"
                     >
                       <span>🗑️ Hapus Data (Admin)</span>
                     </button>

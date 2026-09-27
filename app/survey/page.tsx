@@ -33,7 +33,7 @@ interface PhotoItem {
 
 const BUCKET = 'parcel-photos';
 const MAX_PHOTOS = 3;
-const buttonClass = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2';
+const buttonClass = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-4 py-3 text-xs sm:text-sm font-semibold transition-all duration-200 hover:opacity-90 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2';
 
 function messageOf(error: unknown): string {
   if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
@@ -520,12 +520,12 @@ export default function SurveyPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-3 sm:px-6 py-4 sm:py-8 text-slate-900">
+    <main className="min-h-screen bg-slate-100 px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 text-slate-900 font-sans">
       <div className="mx-auto max-w-2xl lg:max-w-3xl">
-        <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+        <div className="flex items-center justify-between gap-3 mb-5 sm:mb-6 flex-wrap">
           <Link 
             href="/" 
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-xs transition-all duration-150 hover:bg-slate-100 hover:text-slate-900 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200/90 bg-white px-4 py-2.5 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs transition-all duration-200 hover:opacity-90 active:scale-[0.97] hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Kembali ke peta
           </Link>
@@ -542,13 +542,13 @@ export default function SurveyPage() {
           </div>
         </div>
 
-        <header className="mb-6">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100/80 border border-emerald-300/80 text-emerald-800 text-xs font-semibold uppercase tracking-wider mb-2.5">
+        <header className="mb-5 sm:mb-6">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100/80 border border-emerald-300/80 text-emerald-800 text-xs font-semibold uppercase tracking-wider mb-2 sm:mb-2.5">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
             GeoTanah Dairi · Mode Sensus
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Survei Lapangan Baru</h1>
-          <p className="mt-1.5 text-sm text-slate-600">Ketik NIB baru, lengkapi pemilik & alamat, ambil koordinat GPS terverifikasi, serta unggah dokumentasi foto.</p>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-slate-900">Survei Lapangan Baru</h1>
+          <p className="mt-1.5 text-xs sm:text-sm text-slate-600">Ketik NIB baru, lengkapi pemilik & alamat, ambil koordinat GPS terverifikasi, serta unggah dokumentasi foto.</p>
         </header>
 
         <aside className="mb-6 rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4 text-xs text-amber-900 space-y-1">
@@ -560,8 +560,8 @@ export default function SurveyPage() {
 
         <form onSubmit={submitSurvey} className="space-y-5" aria-busy={submitting}>
           {/* Section 1: Identifikasi Bidang & Pemilik */}
-          <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs space-y-3.5">
-            <h2 className="text-base font-semibold text-slate-900">1. Identifikasi Bidang Tanah & Pemilik</h2>
+          <section className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 md:p-6 shadow-sm space-y-3.5 sm:space-y-4">
+            <h2 className="text-sm sm:text-base font-semibold text-slate-900">1. Identifikasi Bidang Tanah & Pemilik</h2>
             
             <div className="space-y-1">
               <label htmlFor="survey-nib" className="block text-sm font-medium text-slate-700">
@@ -642,10 +642,10 @@ export default function SurveyPage() {
           </section>
 
           {/* Section 2: Delineasi Batas Bidang */}
-          <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs space-y-3.5">
+          <section className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 md:p-6 shadow-sm space-y-3.5 sm:space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <h2 className="text-sm sm:text-base font-semibold text-slate-900 flex items-center gap-2">
                   <span>2. Delineasi Batas Bidang (Peta Kerja)</span>
                   <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                     Opsional
@@ -729,17 +729,17 @@ export default function SurveyPage() {
           </section>
 
           {/* Section 3: Ambil Lokasi GPS */}
-          <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs space-y-3">
-            <h2 className="text-base font-semibold text-slate-900">3. Ambil Lokasi GPS</h2>
+          <section className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 shadow-xs space-y-3">
+            <h2 className="text-sm sm:text-base font-semibold text-slate-900">3. Ambil Lokasi GPS</h2>
             <p className="text-xs text-slate-500">Berdiri di batas bidang pada tempat terbuka, lalu tekan tombol untuk mencatat koordinat satelit.</p>
             <button 
               type="button" 
               onClick={captureGps} 
               disabled={busy}
-              className={`${buttonClass} w-full border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400`}
+              className={`${buttonClass} w-full bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-950/20`}
             >
-              {locating ? <LoaderCircle className="h-5 w-5 animate-spin text-emerald-700" aria-hidden="true" /> : <LocateFixed className="h-5 w-5 text-emerald-700" aria-hidden="true" />}
-              {locating ? 'Mencari sinyal GPS (maks. 15 detik)...' : gps ? 'Ambil ulang lokasi GPS' : 'Ambil lokasi GPS sekarang'}
+              {locating ? <LoaderCircle className="h-5 w-5 animate-spin text-white" aria-hidden="true" /> : <LocateFixed className="h-5 w-5 text-white" aria-hidden="true" />}
+              <span>{locating ? 'Mencari sinyal GPS (maks. 15 detik)...' : gps ? 'Ambil Ulang Lokasi GPS' : 'Ambil Lokasi GPS Sekarang'}</span>
             </button>
             <div aria-live="polite" className="text-xs text-slate-600">
               {gps ? (
@@ -769,10 +769,10 @@ export default function SurveyPage() {
           </section>
 
           {/* Section 4: Dokumentasi Foto Lapangan (UX Pre-Submit Preview & Replace) */}
-          <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs space-y-3.5">
+          <section className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-5 md:p-6 shadow-sm space-y-3.5 sm:space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <h2 className="text-sm sm:text-base font-semibold text-slate-900 flex items-center gap-2">
                   <span>4. Dokumentasi Foto Lapangan</span>
                   <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
                     {photos.length} / {MAX_PHOTOS} Foto
@@ -826,7 +826,7 @@ export default function SurveyPage() {
                         disabled={busy}
                         onClick={() => handleRemovePhoto(idx)}
                         title="Hapus / Batalkan foto ini"
-                        className="absolute top-2 right-2 h-7 w-7 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center text-xs font-bold shadow-md cursor-pointer transition-transform active:scale-90"
+                        className="absolute top-2 right-2 h-7 w-7 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center text-xs font-bold shadow-md cursor-pointer transition-all duration-200 hover:opacity-90 active:scale-[0.97]"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -846,7 +846,7 @@ export default function SurveyPage() {
                         type="button"
                         disabled={busy}
                         onClick={() => triggerReplacePhoto(idx)}
-                        className="flex items-center justify-center gap-1 py-2 px-2 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 text-xs font-semibold transition-all cursor-pointer"
+                        className="flex items-center justify-center gap-1 py-2 px-2 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 text-xs font-semibold transition-all duration-200 hover:opacity-90 active:scale-[0.97] cursor-pointer"
                         title="Ambil ulang atau ganti foto pada slot ini"
                       >
                         <RefreshCw className="h-3.5 w-3.5 shrink-0" />
@@ -856,7 +856,7 @@ export default function SurveyPage() {
                         type="button"
                         disabled={busy}
                         onClick={() => handleRemovePhoto(idx)}
-                        className="flex items-center justify-center gap-1 py-2 px-2 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 text-xs font-semibold transition-all cursor-pointer"
+                        className="flex items-center justify-center gap-1 py-2 px-2 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 text-xs font-semibold transition-all duration-200 hover:opacity-90 active:scale-[0.97] cursor-pointer"
                         title="Hapus foto ini dari pilihan"
                       >
                         <Trash2 className="h-3.5 w-3.5 shrink-0" />
@@ -921,10 +921,19 @@ export default function SurveyPage() {
           <button 
             type="submit" 
             disabled={cleanNib.length < 3 || (!gps && !(surveyPolygon.geojson && surveyPolygon.points.length >= 3)) || photos.length === 0 || busy}
-            className={`${buttonClass} w-full bg-emerald-700 text-white shadow-md shadow-emerald-700/20 hover:bg-emerald-800 active:scale-[0.98]`}
+            className={`${buttonClass} w-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-950/20`}
           >
-            {submitting && <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden="true" />}
-            {submitting ? 'Mengunggah foto, detail_lokasi.txt & menyimpan data...' : 'Simpan Data Survei'}
+            {submitting ? (
+              <>
+                <LoaderCircle className="h-5 w-5 animate-spin text-white" aria-hidden="true" />
+                <span>Mengunggah Foto & Menyimpan Data...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                <span>Simpan Data Survei</span>
+              </>
+            )}
           </button>
 
           {savedPhotos.length > 0 && (

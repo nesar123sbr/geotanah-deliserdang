@@ -17,18 +17,18 @@ import { executeExportGeodatabase } from '@/lib/exportGeodatabase';
 const ParcelMap = dynamic(() => import('@/components/ParcelMap'), {
   ssr: false,
   loading: () => (
-    <div className="h-full w-full flex items-center justify-center bg-slate-950 text-slate-400 font-mono text-xs">
+    <div className="h-full w-full flex items-center justify-center bg-slate-100 text-slate-500 font-mono text-xs">
       Memuat Mesin Spasial Leaflet Sidikalang...
     </div>
   ),
 });
 
 const PROGRAM_CONFIG: Record<string, { icon: string; label: string; badgeClass: string }> = {
-  Wakaf: { icon: '🕌', label: 'Wakaf', badgeClass: 'bg-emerald-950/80 text-emerald-300 border-emerald-800' },
-  MBR: { icon: '🏠', label: 'MBR', badgeClass: 'bg-blue-950/80 text-blue-300 border-blue-800' },
-  'Rumah Ibadah': { icon: '🏛️', label: 'Rumah Ibadah', badgeClass: 'bg-purple-950/80 text-purple-300 border-purple-800' },
-  Hibah: { icon: '🎁', label: 'Hibah', badgeClass: 'bg-amber-950/80 text-amber-300 border-amber-800' },
-  Reguler: { icon: '📋', label: 'Reguler', badgeClass: 'bg-slate-800/80 text-slate-400 border-slate-700' },
+  Wakaf: { icon: '🕌', label: 'Wakaf', badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
+  MBR: { icon: '🏠', label: 'MBR', badgeClass: 'bg-blue-50 text-blue-800 border-blue-200' },
+  'Rumah Ibadah': { icon: '🏛️', label: 'Rumah Ibadah', badgeClass: 'bg-purple-50 text-purple-800 border-purple-200' },
+  Hibah: { icon: '🎁', label: 'Hibah', badgeClass: 'bg-amber-50 text-amber-800 border-amber-200' },
+  Reguler: { icon: '📋', label: 'Reguler', badgeClass: 'bg-slate-100 text-slate-700 border-slate-200' },
 };
 
 export default function Dashboard() {
@@ -381,20 +381,20 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
-      <header className="border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md px-3 sm:px-6 py-2.5 sm:py-3.5 flex flex-wrap gap-2.5 sm:gap-3 items-center justify-between sticky top-0 z-50 shadow-sm">
+    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
+      <header className="border-b border-slate-200/80 bg-white/95 backdrop-blur-md px-3 sm:px-4 md:px-6 py-2.5 sm:py-3.5 flex flex-wrap gap-2.5 sm:gap-3 items-center justify-between sticky top-0 z-50 shadow-xs">
         <div className="flex items-center gap-2.5 sm:gap-3">
-          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white shrink-0">
+          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-emerald-600 flex items-center justify-center shadow-md shadow-emerald-600/20 text-white shrink-0">
             <Compass className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
           <div>
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <h1 className="font-bold text-sm sm:text-lg tracking-tight text-white">GeoTanah Dairi</h1>
-              <span className="hidden xs:inline-block px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-mono bg-emerald-950/80 border border-emerald-800 text-emerald-400">
+              <h1 className="font-bold text-sm sm:text-base md:text-lg tracking-tight text-slate-900">GeoTanah Dairi</h1>
+              <span className="hidden xs:inline-block px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-mono bg-emerald-50 border border-emerald-200 text-emerald-800">
                 PostGIS v2 Spheroid
               </span>
             </div>
-            <p className="text-[11px] sm:text-xs text-slate-400">Monitoring Kadastral & Inventarisasi KKP Kantah Dairi</p>
+            <p className="text-[11px] sm:text-xs text-slate-500">Monitoring Kadastral & Inventarisasi KKP Kantah Dairi</p>
           </div>
         </div>
 
@@ -403,16 +403,16 @@ export default function Dashboard() {
             type="button"
             onClick={() => setIsExportModalOpen(true)}
             disabled={isExporting || loading}
-            className="inline-flex min-h-10 sm:min-h-11 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-slate-800 hover:bg-slate-700/90 border border-slate-700 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-slate-200 hover:text-white active:scale-[0.98] transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="inline-flex min-h-10 sm:min-h-11 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/90 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-slate-700 hover:text-slate-900 shadow-xs transition-all duration-200 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             title="Export Geodatabase lengkap (GeoJSON, CSV, Rekap, dan Foto) ke format ZIP"
           >
-            <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-400" />
+            <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600" />
             <span className="hidden sm:inline">Export Geodatabase</span>
             <span className="sm:hidden">Export</span>
           </button>
           <Link 
             href="/survey" 
-            className="inline-flex min-h-10 sm:min-h-11 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-emerald-600 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-white hover:bg-emerald-500 active:scale-[0.98] transition-all shadow-sm shadow-emerald-950/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+            className="inline-flex min-h-10 sm:min-h-11 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-emerald-600 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-white hover:bg-emerald-500 shadow-sm shadow-emerald-950/20 transition-all duration-200 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
           >
             <Camera className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Buka Mode Sensus</span>
@@ -421,13 +421,13 @@ export default function Dashboard() {
 
           {/* Autentikasi Pengguna & Role Badge */}
           {currentUserEmail ? (
-            <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-900/90 border border-slate-700/90 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs shadow-xs">
-              <User className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-              <span className="text-slate-300 font-mono text-[11px] max-w-[100px] sm:max-w-[180px] truncate" title={currentUserEmail}>
+            <div className="flex items-center gap-1.5 sm:gap-2 bg-white border border-slate-200/90 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs shadow-xs text-slate-700">
+              <User className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+              <span className="text-slate-700 font-mono text-[11px] max-w-[100px] sm:max-w-[180px] truncate" title={currentUserEmail}>
                 {currentUserEmail}
               </span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                isAdmin ? 'bg-rose-950/90 text-rose-300 border border-rose-800' : 'bg-emerald-950/90 text-emerald-300 border border-emerald-800'
+                isAdmin ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
               }`}>
                 {isAdmin ? 'Admin' : 'Surveyor'}
               </span>
@@ -435,7 +435,7 @@ export default function Dashboard() {
                 type="button"
                 onClick={handleLogout}
                 title="Keluar akun"
-                className="ml-1 text-slate-400 hover:text-rose-400 transition-colors p-1 rounded-lg hover:bg-slate-800 cursor-pointer"
+                className="ml-1 text-slate-400 hover:text-rose-600 transition-all duration-200 hover:opacity-90 active:scale-[0.97] p-1 rounded-lg hover:bg-rose-50 cursor-pointer"
               >
                 <LogOut className="h-3.5 w-3.5" />
               </button>
@@ -444,30 +444,30 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => setIsAuthModalOpen(true)}
-              className="inline-flex min-h-10 sm:min-h-11 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-slate-800 hover:bg-slate-700/90 border border-slate-700 px-3 sm:px-3.5 text-xs font-semibold text-slate-200 hover:text-white active:scale-[0.98] transition-all cursor-pointer shadow-sm"
+              className="inline-flex min-h-10 sm:min-h-11 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/90 px-3 sm:px-3.5 text-xs font-semibold text-slate-700 hover:text-slate-900 shadow-xs transition-all duration-200 hover:opacity-90 active:scale-[0.97] cursor-pointer"
             >
-              <LogIn className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-400" />
+              <LogIn className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600" />
               <span>Login / Masuk</span>
             </button>
           )}
 
-          <div className="hidden xl:flex items-center gap-2 bg-slate-800/60 border border-slate-700/80 px-3 py-1.5 rounded-xl text-xs">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-slate-300 font-medium">Kantah Kab. Dairi</span>
+          <div className="hidden xl:flex items-center gap-2 bg-slate-50 border border-slate-200/80 px-3 py-1.5 rounded-xl text-xs text-slate-600">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-medium">Kantah Kab. Dairi</span>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 p-3 sm:p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 max-w-[1700px] w-full mx-auto">
+      <main className="flex-1 p-3 sm:p-4 md:p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 md:gap-5 max-w-[1700px] w-full mx-auto">
         {/* Panel Kiri (Desktop) / Bawah Peta (Mobile): Daftar Persil & Statistik */}
-        <div className="order-2 lg:order-1 lg:col-span-3 flex flex-col gap-4">
+        <div className="order-2 lg:order-1 lg:col-span-3 flex flex-col gap-3 sm:gap-4">
           {loadError && (
-            <div role="alert" className="rounded-2xl border border-rose-800/80 bg-rose-950/70 p-4 text-xs text-rose-200 shadow-sm space-y-2.5">
-              <div className="flex items-center gap-2 font-semibold text-rose-300">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-400" />
+            <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-900 shadow-xs space-y-2.5">
+              <div className="flex items-center gap-2 font-semibold text-rose-800">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
                 <span>Gagal Memuat Data Persil</span>
               </div>
-              <p className="text-[11px] text-rose-300/80 leading-relaxed">{loadError}</p>
+              <p className="text-[11px] text-rose-700 leading-relaxed">{loadError}</p>
               <button
                 type="button"
                 onClick={() => {
@@ -475,7 +475,7 @@ export default function Dashboard() {
                   setLoadError(null);
                   setReload((prev) => prev + 1);
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-900/80 hover:bg-rose-800 border border-rose-700/80 text-white font-medium active:scale-95 transition-all text-xs"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-medium transition-all duration-200 hover:opacity-90 active:scale-[0.97] text-xs shadow-xs"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 <span>Coba Lagi</span>
@@ -484,46 +484,46 @@ export default function Dashboard() {
           )}
 
           {loading ? (
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 animate-pulse space-y-2">
-                  <div className="h-3 w-16 bg-slate-800 rounded" />
-                  <div className="h-6 w-12 bg-slate-700 rounded" />
-                  <div className="h-2.5 w-20 bg-slate-800/60 rounded" />
+                <div key={i} className="bg-white border border-slate-200/80 rounded-2xl p-3 sm:p-3.5 animate-pulse space-y-2">
+                  <div className="h-3 w-16 bg-slate-200 rounded" />
+                  <div className="h-6 w-12 bg-slate-300 rounded" />
+                  <div className="h-2.5 w-20 bg-slate-200 rounded" />
                 </div>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5">
-                <span className="text-[11px] text-slate-400 font-medium">Total NIB</span>
-                <div className="text-xl font-bold font-mono text-white mt-0.5">{totalParcels}</div>
-                <span className="text-[10px] text-slate-500">Persil Sidikalang</span>
+            <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+              <div className="bg-white border border-slate-200/70 rounded-2xl p-3 sm:p-3.5 shadow-xs">
+                <span className="text-[11px] sm:text-xs text-slate-500 font-medium">Total NIB</span>
+                <div className="text-lg sm:text-xl font-bold font-mono text-slate-900 mt-0.5">{totalParcels}</div>
+                <span className="text-[10px] text-slate-400">Persil Sidikalang</span>
               </div>
-              <div className="bg-emerald-950/30 border border-emerald-800/50 rounded-xl p-3.5">
-                <span className="text-[11px] text-emerald-400 font-medium">KKP: KW 1</span>
-                <div className="text-xl font-bold font-mono text-emerald-300 mt-0.5">{kw1Count}</div>
-                <span className="text-[10px] text-emerald-500">Spasial Lengkap</span>
+              <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-2xl p-3 sm:p-3.5 shadow-xs">
+                <span className="text-[11px] sm:text-xs text-emerald-800 font-medium">KKP: KW 1</span>
+                <div className="text-lg sm:text-xl font-bold font-mono text-emerald-700 mt-0.5">{kw1Count}</div>
+                <span className="text-[10px] text-emerald-600">Spasial Lengkap</span>
               </div>
-              <div className="bg-amber-950/30 border border-amber-800/50 rounded-xl p-3.5">
-                <span className="text-[11px] text-amber-400 font-medium">KKP: KW 4/5/6</span>
-                <div className="text-xl font-bold font-mono text-amber-300 mt-0.5">{kw456Count}</div>
-                <span className="text-[10px] text-amber-500">Belum Terpetakan</span>
+              <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-3 sm:p-3.5 shadow-xs">
+                <span className="text-[11px] sm:text-xs text-amber-800 font-medium">KKP: KW 4/5/6</span>
+                <div className="text-lg sm:text-xl font-bold font-mono text-amber-700 mt-0.5">{kw456Count}</div>
+                <span className="text-[10px] text-amber-600">Belum Terpetakan</span>
               </div>
-              <div className="bg-rose-950/30 border border-rose-800/50 rounded-xl p-3.5">
-                <span className="text-[11px] text-rose-400 font-medium">Tumpang Tindih</span>
-                <div className="text-xl font-bold font-mono text-rose-300 mt-0.5">{conflictCount}</div>
-                <span className="text-[10px] text-rose-500">Indikasi Overlap</span>
+              <div className="bg-rose-50/80 border border-rose-200/80 rounded-2xl p-3 sm:p-3.5 shadow-xs">
+                <span className="text-[11px] sm:text-xs text-rose-800 font-medium">Tumpang Tindih</span>
+                <div className="text-lg sm:text-xl font-bold font-mono text-rose-700 mt-0.5">{conflictCount}</div>
+                <span className="text-[10px] text-rose-600">Indikasi Overlap</span>
               </div>
             </div>
           )}
 
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex-1 flex flex-col min-h-[400px]">
+          <div className="bg-white border border-slate-200/70 rounded-2xl p-3.5 sm:p-4 shadow-xs flex-1 flex flex-col min-h-[400px]">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <Layers className="h-3.5 w-3.5 text-emerald-400" /> Daftar Persil
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <Layers className="h-3.5 w-3.5 text-emerald-600" /> Daftar Persil
               </h2>
-              <span className="text-[10px] bg-slate-800 border border-slate-700/60 px-2 py-0.5 rounded-md text-slate-300 font-mono">
+              <span className="text-[10px] bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md text-slate-600 font-mono">
                 {loading ? '...' : `${filteredParcels.length} Bidang`}
               </span>
             </div>
@@ -531,7 +531,7 @@ export default function Dashboard() {
             {/* Kotak Input Pencarian */}
             <div className="relative mb-3">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-slate-500" />
+                <Search className="h-4 w-4 text-slate-400" />
               </div>
               <input
                 type="text"
@@ -541,39 +541,39 @@ export default function Dashboard() {
                   if (e.target.value) setFilterTab('SEMUA');
                 }}
                 placeholder="Cari NIB atau Pemilik..."
-                className="w-full min-h-10 bg-slate-950/70 border border-slate-800/90 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                className="w-full min-h-11 bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200"
               />
             </div>
 
-            <div className="grid grid-cols-4 gap-1 p-1 bg-slate-950/60 rounded-xl border border-slate-800/80 mb-2 text-[10px]">
+            <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200/80 mb-2 text-[10px] sm:text-xs">
               <button 
                 onClick={() => setFilterTab('SEMUA')}
-                className={`py-1.5 rounded-lg transition-all active:scale-[0.98] ${filterTab === 'SEMUA' ? 'bg-slate-800 text-white font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                className={`py-1.5 rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.97] ${filterTab === 'SEMUA' ? 'bg-white text-slate-900 font-semibold shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
               >
                 Semua
               </button>
               <button 
                 onClick={() => setFilterTab('KW1')}
-                className={`py-1.5 rounded-lg transition-all active:scale-[0.98] ${filterTab === 'KW1' ? 'bg-emerald-900/60 text-emerald-300 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                className={`py-1.5 rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.97] ${filterTab === 'KW1' ? 'bg-emerald-600 text-white font-semibold shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
               >
                 KW 1
               </button>
               <button 
                 onClick={() => setFilterTab('KW456')}
-                className={`py-1.5 rounded-lg transition-all active:scale-[0.98] ${filterTab === 'KW456' ? 'bg-amber-900/60 text-amber-300 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                className={`py-1.5 rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.97] ${filterTab === 'KW456' ? 'bg-amber-600 text-white font-semibold shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
               >
                 KW 4/5/6
               </button>
               <button 
                 onClick={() => setFilterTab('CONFLICT')}
-                className={`py-1.5 rounded-lg transition-all active:scale-[0.98] ${filterTab === 'CONFLICT' ? 'bg-rose-900/60 text-rose-300 font-semibold shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                className={`py-1.5 rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.97] ${filterTab === 'CONFLICT' ? 'bg-rose-600 text-white font-semibold shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
               >
                 Overlap
               </button>
             </div>
 
             {/* Filter Tab Program Sensus */}
-            <div className="flex items-center gap-1 p-1 bg-slate-950/60 rounded-xl border border-slate-800/80 mb-3 text-[10px] overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200/80 mb-3 text-[10px] sm:text-xs overflow-x-auto no-scrollbar">
               {[
                 { id: 'ALL', label: 'Semua Program', icon: '' },
                 { id: 'Wakaf', label: 'Wakaf', icon: '🕌' },
@@ -585,10 +585,10 @@ export default function Dashboard() {
                 <button
                   key={item.id}
                   onClick={() => setProgramFilter(item.id as typeof programFilter)}
-                  className={`py-1 px-2 rounded-lg transition-all whitespace-nowrap shrink-0 flex items-center gap-1 active:scale-[0.98] ${
+                  className={`py-1 px-2.5 rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.97] whitespace-nowrap shrink-0 flex items-center gap-1 ${
                     programFilter === item.id
-                      ? 'bg-emerald-800/90 text-emerald-100 font-semibold shadow-sm border border-emerald-600/60'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-emerald-600 text-white font-semibold shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                   }`}
                 >
                   {item.icon && <span>{item.icon}</span>}
@@ -601,22 +601,22 @@ export default function Dashboard() {
               {loading ? (
                 <div className="space-y-2">
                   {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="p-3 rounded-xl border border-slate-800 bg-slate-950/40 animate-pulse space-y-2">
+                    <div key={i} className="p-3 rounded-xl border border-slate-200 bg-slate-50/60 animate-pulse space-y-2">
                       <div className="flex items-center justify-between">
-                        <div className="h-3.5 w-24 bg-slate-800 rounded" />
-                        <div className="h-3.5 w-10 bg-slate-800 rounded" />
+                        <div className="h-3.5 w-24 bg-slate-200 rounded" />
+                        <div className="h-3.5 w-10 bg-slate-200 rounded" />
                       </div>
-                      <div className="h-3 w-32 bg-slate-800/80 rounded" />
-                      <div className="h-2.5 w-20 bg-slate-800/50 rounded" />
+                      <div className="h-3 w-32 bg-slate-200 rounded" />
+                      <div className="h-2.5 w-20 bg-slate-200 rounded" />
                     </div>
                   ))}
                 </div>
               ) : filteredParcels.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-                  <div className="h-10 w-10 rounded-full bg-slate-800/70 border border-slate-700/60 flex items-center justify-center text-slate-400 mb-2">
+                  <div className="h-10 w-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 mb-2">
                     <Search className="h-4 w-4" />
                   </div>
-                  <p className="text-xs font-semibold text-slate-300">Tidak ada persil cocok</p>
+                  <p className="text-xs font-semibold text-slate-800">Tidak ada persil cocok</p>
                   <p className="text-[11px] text-slate-500 mt-1 max-w-[200px]">Coba ubah kata kunci NIB atau ganti filter tab di atas.</p>
                 </div>
               ) : (
@@ -624,17 +624,17 @@ export default function Dashboard() {
                   <button
                     key={parcel.id}
                     onClick={() => setSelectedParcel(parcel)}
-                    className={`w-full text-left p-3 rounded-xl border transition-all active:scale-[0.99] flex items-center justify-between ${
+                    className={`w-full text-left p-3 rounded-xl border transition-all duration-200 hover:opacity-90 active:scale-[0.98] flex items-center justify-between ${
                       selectedParcel?.id === parcel.id
-                        ? 'bg-emerald-950/40 border-emerald-500/70 shadow-sm shadow-emerald-950/50'
-                        : 'bg-slate-950/40 border-slate-800/80 hover:bg-slate-800/60 hover:border-slate-700/80'
+                        ? 'bg-emerald-50/90 border-emerald-400 shadow-xs'
+                        : 'bg-slate-50/70 border-slate-200/80 hover:bg-slate-100/80 hover:border-slate-300'
                     }`}
                   >
                     <div>
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs font-mono font-semibold text-slate-200">{parcel.nib}</span>
+                        <span className="text-xs font-mono font-semibold text-slate-900">{parcel.nib}</span>
                         {parcel.kkp_category && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-emerald-400 font-mono">
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 font-mono font-semibold">
                             {parcel.kkp_category}
                           </span>
                         )}
@@ -652,10 +652,10 @@ export default function Dashboard() {
                           );
                         })()}
                       </div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">{parcel.owner_name}</div>
+                      <div className="text-[11px] text-slate-600 mt-0.5 font-medium">{parcel.owner_name}</div>
                       <div className="text-[10px] text-slate-500">{parcel.village}</div>
                     </div>
-                    <ChevronRight className={`h-4 w-4 transition-transform ${selectedParcel?.id === parcel.id ? 'text-emerald-400 translate-x-0.5' : 'text-slate-600'}`} />
+                    <ChevronRight className={`h-4 w-4 transition-transform ${selectedParcel?.id === parcel.id ? 'text-emerald-600 translate-x-0.5' : 'text-slate-400'}`} />
                   </button>
                 ))
               )}
@@ -664,10 +664,11 @@ export default function Dashboard() {
         </div>
 
         {/* Panel Tengah (Desktop) / Atas Layar (Mobile): Peta Spasial Leaflet */}
-        <div className="order-1 lg:order-2 lg:col-span-6 bg-slate-900/80 border border-slate-800 rounded-2xl p-2 h-[50vh] min-h-[380px] lg:h-[calc(100vh-140px)] lg:min-h-[620px] shadow-xl relative overflow-hidden flex flex-col">
-          <div className="absolute top-4 left-4 z-10 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 shadow-lg">
-            <Activity className="h-3.5 w-3.5 text-emerald-400" />
-            <span className="text-slate-300 font-medium">Sidikalang Cadastral Viewer</span>
+        <div className="order-1 lg:order-2 lg:col-span-6 bg-white border border-slate-200/70 rounded-2xl p-2 h-[50vh] min-h-[380px] lg:h-[calc(100vh-140px)] lg:min-h-[620px] shadow-sm relative overflow-hidden flex flex-col">
+          {/* Sembunyikan badge judul di HP (hidden md:flex) */}
+          <div className="hidden md:flex absolute top-4 left-4 z-10 bg-white/95 backdrop-blur-md border border-slate-200/80 px-3 py-1.5 rounded-xl text-xs items-center gap-2 shadow-sm text-slate-700 font-medium">
+            <Activity className="h-3.5 w-3.5 text-emerald-600" />
+            <span>Sidikalang Cadastral Viewer</span>
           </div>
           <ParcelMap 
             parcels={filteredParcels} 
@@ -679,26 +680,26 @@ export default function Dashboard() {
         </div>
 
         {/* Panel Kanan (Desktop) / Paling Bawah (Mobile): Inspector Persil Dairi */}
-        <div className="order-3 lg:order-3 lg:col-span-3 flex flex-col gap-4">
-          <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-emerald-400" /> Inspector Persil Dairi
+        <div className="order-3 lg:order-3 lg:col-span-3 flex flex-col gap-3 sm:gap-4">
+          <div className="bg-white border border-slate-200/70 rounded-2xl p-3.5 sm:p-4 md:p-5 flex flex-col shadow-xs">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3.5 sm:mb-4 flex items-center gap-1.5">
+              <ShieldCheck className="h-4 w-4 text-emerald-600" /> Inspector Persil Dairi
             </h2>
 
             {loading ? (
               <div className="space-y-3.5 animate-pulse">
-                <div className="h-14 rounded-xl bg-slate-950/60 border border-slate-800" />
+                <div className="h-14 rounded-xl bg-slate-100 border border-slate-200" />
                 <div className="flex gap-2">
-                  <div className="h-7 w-16 rounded-lg bg-slate-800" />
-                  <div className="h-7 w-20 rounded-lg bg-slate-800" />
-                  <div className="h-7 w-20 rounded-lg bg-slate-800" />
+                  <div className="h-7 w-16 rounded-lg bg-slate-200" />
+                  <div className="h-7 w-20 rounded-lg bg-slate-200" />
+                  <div className="h-7 w-20 rounded-lg bg-slate-200" />
                 </div>
-                <div className="h-28 rounded-xl bg-slate-950/60 border border-slate-800" />
-                <div className="h-28 rounded-xl bg-slate-950/60 border border-slate-800" />
-                <div className="h-32 rounded-xl bg-slate-950/60 border border-slate-800" />
+                <div className="h-28 rounded-xl bg-slate-100 border border-slate-200" />
+                <div className="h-28 rounded-xl bg-slate-100 border border-slate-200" />
+                <div className="h-32 rounded-xl bg-slate-100 border border-slate-200" />
               </div>
             ) : selectedParcel ? (
-              <div className="space-y-3.5 text-xs">
+              <div className="space-y-3 text-xs sm:text-sm">
                 {(() => {
                   const isConflict = selectedParcel.is_overlapping === true || selectedParcel.status === 'Tumpang Tindih';
                   const isWarning = !isConflict && (
@@ -708,11 +709,11 @@ export default function Dashboard() {
 
                   if (isConflict) {
                     return (
-                      <div className="p-3.5 rounded-xl border flex items-center gap-3 bg-rose-950/40 border-rose-800/80 text-rose-300 shadow-sm">
-                        <AlertTriangle className="h-5 w-5 shrink-0 text-rose-400" />
+                      <div className="p-3.5 rounded-xl border flex items-center gap-3 bg-rose-50 border-rose-200 text-rose-900 shadow-xs">
+                        <AlertTriangle className="h-5 w-5 shrink-0 text-rose-600" />
                         <div>
-                          <div className="font-bold text-xs">Indikasi Tumpang Tindih</div>
-                          <div className="text-[10px] opacity-80">Irisan area terdeteksi dengan persil lain</div>
+                          <div className="font-bold text-xs sm:text-sm">Indikasi Tumpang Tindih</div>
+                          <div className="text-[11px] opacity-80">Irisan area terdeteksi dengan persil lain</div>
                         </div>
                       </div>
                     );
@@ -720,32 +721,32 @@ export default function Dashboard() {
 
                   if (isWarning) {
                     return (
-                      <div className="p-3.5 rounded-xl border flex items-center gap-3 bg-amber-950/40 border-amber-800/80 text-amber-300 shadow-sm">
-                        <HelpCircle className="h-5 w-5 shrink-0 text-amber-400" />
+                      <div className="p-3.5 rounded-xl border flex items-center gap-3 bg-amber-50 border-amber-200 text-amber-900 shadow-xs">
+                        <HelpCircle className="h-5 w-5 shrink-0 text-amber-600" />
                         <div>
-                          <div className="font-bold text-xs">Perlu Verifikasi Lapangan</div>
-                          <div className="text-[10px] opacity-80">Deviasi &gt; 2% / Geometri indikatif</div>
+                          <div className="font-bold text-xs sm:text-sm">Perlu Verifikasi Lapangan</div>
+                          <div className="text-[11px] opacity-80">Deviasi &gt; 2% / Geometri indikatif</div>
                         </div>
                       </div>
                     );
                   }
 
                   return (
-                    <div className="p-3.5 rounded-xl border flex items-center gap-3 bg-emerald-950/40 border-emerald-800/80 text-emerald-300 shadow-sm">
-                      <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
+                    <div className="p-3.5 rounded-xl border flex items-center gap-3 bg-emerald-50 border-emerald-200 text-emerald-900 shadow-xs">
+                      <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
                       <div>
-                        <div className="font-bold text-xs">Lolos Cek Teknis Demo</div>
-                        <div className="text-[10px] opacity-80">Topologi bersih & deviasi wajar</div>
+                        <div className="font-bold text-xs sm:text-sm">Lolos Cek Teknis Demo</div>
+                        <div className="text-[11px] opacity-80">Topologi bersih & deviasi wajar</div>
                       </div>
                     </div>
                   );
                 })()}
 
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="px-2.5 py-1 rounded-lg bg-emerald-950/60 border border-emerald-800/80 text-[11px] font-mono text-emerald-300 font-medium">
+                  <span className="px-2.5 py-1 rounded-lg bg-emerald-100 border border-emerald-200 text-[11px] font-mono text-emerald-800 font-semibold">
                     {selectedParcel.kkp_category || 'KW -'}
                   </span>
-                  <span className="px-2.5 py-1 rounded-lg bg-slate-800/80 border border-slate-700 text-[11px] text-slate-300 font-medium">
+                  <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-[11px] text-slate-700 font-medium">
                     {selectedParcel.hak_type || 'Hak Milik'}
                   </span>
                   {(() => {
@@ -758,55 +759,57 @@ export default function Dashboard() {
                       </span>
                     );
                   })()}
-                  <span className="px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[10px] text-slate-400 font-mono">
+                  <span className="px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-[10px] text-slate-500 font-mono">
                     src: {selectedParcel.geometry_source || 'survei'}
                   </span>
                 </div>
 
-                <div className="bg-slate-950/60 rounded-xl p-3.5 border border-slate-800/80 space-y-2 font-mono text-[11px]">
-                  <div className="flex justify-between pb-1.5 border-b border-slate-800/80">
-                    <span className="text-slate-400 font-sans text-xs">NIB</span>
-                    <span className="text-slate-200 font-semibold">{selectedParcel.nib}</span>
+                {/* Chunk 1: Informasi Identitas Bidang */}
+                <div className="bg-slate-50/80 rounded-xl p-3 sm:p-3.5 border border-slate-200/80 space-y-2 font-mono text-[11px] sm:text-xs">
+                  <div className="flex justify-between pb-1.5 border-b border-slate-200/70">
+                    <span className="text-slate-500 font-sans text-xs">NIB</span>
+                    <span className="text-slate-900 font-bold">{selectedParcel.nib}</span>
                   </div>
-                  <div className="flex justify-between pb-1.5 border-b border-slate-800/80">
-                    <span className="text-slate-400 font-sans text-xs">Program Sensus</span>
-                    <span className="text-slate-200 font-sans flex items-center gap-1.5">
+                  <div className="flex justify-between pb-1.5 border-b border-slate-200/70">
+                    <span className="text-slate-500 font-sans text-xs">Program Sensus</span>
+                    <span className="text-slate-800 font-sans flex items-center gap-1.5">
                       <span>{PROGRAM_CONFIG[selectedParcel.program_type || 'Reguler']?.icon || '📋'}</span>
                       <span className="font-semibold text-xs">{selectedParcel.program_type || 'Reguler'}</span>
                     </span>
                   </div>
-                  <div className="flex justify-between pb-1.5 border-b border-slate-800/80">
-                    <span className="text-slate-400 font-sans text-xs">Pemilik</span>
-                    <span className="text-slate-200 font-sans">{selectedParcel.owner_name}</span>
+                  <div className="flex justify-between pb-1.5 border-b border-slate-200/70">
+                    <span className="text-slate-500 font-sans text-xs">Pemilik</span>
+                    <span className="text-slate-800 font-sans font-medium">{selectedParcel.owner_name}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-400 font-sans text-xs">Desa</span>
-                    <span className="text-slate-200 font-sans">{selectedParcel.village}</span>
+                    <span className="text-slate-500 font-sans text-xs">Desa</span>
+                    <span className="text-slate-800 font-sans">{selectedParcel.village}</span>
                   </div>
                 </div>
 
-                <div className="bg-slate-950/60 rounded-xl p-3.5 border border-slate-800/80 space-y-2">
-                  <span className="text-[10px] font-semibold text-slate-400 block uppercase tracking-wider">
+                {/* Chunk 2: Kalkulasi Luas */}
+                <div className="bg-slate-50/80 rounded-xl p-3 sm:p-3.5 border border-slate-200/80 space-y-2">
+                  <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 block uppercase tracking-wider">
                     Kalkulasi Luas (Meter²)
                   </span>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">Surat Dokumen:</span>
-                    <span className="font-mono text-slate-200">
+                  <div className="flex justify-between text-xs sm:text-sm">
+                    <span className="text-slate-500">Surat Dokumen:</span>
+                    <span className="font-mono text-slate-800">
                       {Number(selectedParcel.legal_area_m2) <= 0.01 
                         ? 'Belum Ada (Indikatif)' 
                         : `${selectedParcel.legal_area_m2} m²`}
                     </span>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">Hitung Spasial:</span>
-                    <span className="font-mono text-emerald-400 font-medium">{selectedParcel.spatial_area_m2 ? `${selectedParcel.spatial_area_m2} m²` : '-'}</span>
+                  <div className="flex justify-between text-xs sm:text-sm">
+                    <span className="text-slate-500">Hitung Spasial:</span>
+                    <span className="font-mono text-emerald-700 font-bold">{selectedParcel.spatial_area_m2 ? `${selectedParcel.spatial_area_m2} m²` : '-'}</span>
                   </div>
-                  <div className="pt-1.5 border-t border-slate-800/80 flex justify-between text-xs">
-                    <span className="text-slate-400">Margin Deviasi:</span>
+                  <div className="pt-1.5 border-t border-slate-200/70 flex justify-between text-xs sm:text-sm">
+                    <span className="text-slate-500">Margin Deviasi:</span>
                     <span className={`font-mono font-bold ${
                       selectedParcel.deviation_percent !== null && Number(selectedParcel.deviation_percent) > 2.0 
-                        ? 'text-amber-400' 
-                        : 'text-emerald-400'
+                        ? 'text-amber-600' 
+                        : 'text-emerald-600'
                     }`}>
                       {Number(selectedParcel.legal_area_m2) <= 0.01 
                         ? 'Perlu Warkah Fisik' 
@@ -817,21 +820,22 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div className="bg-slate-950/40 rounded-xl p-3 border border-slate-800/80">
+                {/* Chunk 3: Catatan Lapangan */}
+                <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-200/80">
                   <span className="text-[10px] text-slate-500 block mb-0.5 uppercase tracking-wider font-semibold">Catatan Lapangan</span>
-                  <p className="text-[11px] text-slate-300 italic">
+                  <p className="text-[11px] sm:text-xs text-slate-700 italic">
                     &quot;{selectedParcel.surveyor_notes || '-'}&quot;
                   </p>
                 </div>
 
-                {/* Dokumentasi Foto Lapangan & Data GPS Sensus */}
-                <div className="bg-slate-950/60 rounded-xl p-3.5 border border-slate-800/80 space-y-3">
+                {/* Chunk 4: Dokumentasi Foto Lapangan & Data GPS Sensus */}
+                <div className="bg-slate-50/80 rounded-xl p-3 sm:p-3.5 border border-slate-200/80 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <Camera className="h-3.5 w-3.5 text-emerald-400" /> Foto & Lokasi Sensus
+                    <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <Camera className="h-3.5 w-3.5 text-emerald-600" /> Foto & Lokasi Sensus
                     </span>
                     {selectedParcel.surveyed_at && (
-                      <span className="text-[9px] text-emerald-400 font-mono bg-emerald-950/50 border border-emerald-900/60 px-1.5 py-0.5 rounded">
+                      <span className="text-[9px] text-emerald-800 font-mono bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded font-semibold">
                         {new Date(selectedParcel.surveyed_at).toLocaleDateString('id-ID', {
                           day: 'numeric',
                           month: 'short',
@@ -849,7 +853,7 @@ export default function Dashboard() {
                         href={supabase.storage.from('parcel-photos').getPublicUrl(selectedParcel.photo_path).data.publicUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="group relative block overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900 aspect-video w-full shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                        className="group relative block overflow-hidden rounded-xl border border-slate-200 bg-slate-100 aspect-video w-full shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
                         title="Klik untuk membuka foto resolusi penuh di tab baru"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -869,31 +873,31 @@ export default function Dashboard() {
                           decoding="async"
                           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                         />
-                        <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-medium gap-1.5 backdrop-blur-[1px]">
+                        <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-semibold gap-1.5 backdrop-blur-[1px]">
                           <span>Buka Resolusi Penuh</span>
                           <ExternalLink className="h-3.5 w-3.5" />
                         </div>
                       </a>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-800 bg-slate-950/40 p-4 text-center">
-                      <Camera className="h-5 w-5 text-slate-600 mb-1" />
-                      <span className="text-[11px] text-slate-400 font-medium">Belum ada foto lapangan</span>
-                      <span className="text-[9px] text-slate-500 mt-0.5">Dapat disurvei melalui Mode Sensus</span>
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white p-4 text-center">
+                      <Camera className="h-5 w-5 text-slate-400 mb-1" />
+                      <span className="text-[11px] text-slate-600 font-medium">Belum ada foto lapangan</span>
+                      <span className="text-[9px] text-slate-400 mt-0.5">Dapat disurvei melalui Mode Sensus</span>
                     </div>
                   )}
 
                   {/* Metadata GPS / Centroid jika tersedia */}
                   {selectedParcel.gps_lat !== null && selectedParcel.gps_lat !== undefined && selectedParcel.gps_lng !== null && selectedParcel.gps_lng !== undefined && (
-                    <div className="pt-2 border-t border-slate-800/80 font-mono text-[10px] space-y-1.5 text-slate-400">
+                    <div className="pt-2 border-t border-slate-200/80 font-mono text-[10px] sm:text-[11px] space-y-1.5 text-slate-600">
                       <div className="flex items-center justify-between">
                         <span className="flex items-center gap-1 font-sans text-slate-500">
-                          <MapPin className="h-3 w-3 text-emerald-400" />
+                          <MapPin className="h-3 w-3 text-emerald-600" />
                           {selectedParcel.gps_accuracy_m !== null && selectedParcel.gps_accuracy_m !== undefined
                             ? 'Koordinat GPS:'
                             : 'Centroid Poligon:'}
                         </span>
-                        <span className="text-slate-200">
+                        <span className="text-slate-800 font-semibold">
                           {Number(selectedParcel.gps_lat).toFixed(6)}, {Number(selectedParcel.gps_lng).toFixed(6)}
                         </span>
                       </div>
@@ -904,9 +908,9 @@ export default function Dashboard() {
                             : 'Status GPS:'}
                         </span>
                         {selectedParcel.gps_accuracy_m !== null && selectedParcel.gps_accuracy_m !== undefined ? (
-                          <span className="text-emerald-400">±{Number(selectedParcel.gps_accuracy_m).toFixed(2)} m</span>
+                          <span className="text-emerald-700 font-bold">±{Number(selectedParcel.gps_accuracy_m).toFixed(2)} m</span>
                         ) : (
-                          <span className="text-amber-400 font-sans">Tanpa GPS (Delineasi Poligon)</span>
+                          <span className="text-amber-700 font-sans font-medium">Tanpa GPS (Delineasi Poligon)</span>
                         )}
                       </div>
                     </div>
@@ -918,17 +922,17 @@ export default function Dashboard() {
                     onClick={() => handleExportCadCsv(selectedParcel)}
                     disabled={!selectedParcel?.geojson}
                     title={!selectedParcel?.geojson ? 'Hanya tersedia untuk bidang dengan poligon' : 'Export koordinat patok batas ke format CSV/AutoCAD'}
-                    className={`w-full min-h-11 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700/90 border border-slate-700 text-slate-200 font-medium text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
-                      !selectedParcel?.geojson ? 'opacity-50 cursor-not-allowed active:scale-100 hover:bg-slate-800' : ''
+                    className={`w-full min-h-11 py-2.5 px-3 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-all duration-200 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      !selectedParcel?.geojson ? 'opacity-50 cursor-not-allowed active:scale-100 hover:bg-white' : ''
                     }`}
                   >
-                    <Download className="h-3.5 w-3.5 text-emerald-400" /> Export Patok (AutoCAD / CSV)
+                    <Download className="h-3.5 w-3.5 text-emerald-600" /> Export Patok (AutoCAD / CSV)
                   </button>
                   <button 
                     onClick={() => handleExportGeoJson(selectedParcel)}
                     disabled={!selectedParcel?.geojson}
                     title={!selectedParcel?.geojson ? 'Hanya tersedia untuk bidang dengan poligon' : 'Export layer geometri ke format GeoJSON/QGIS'}
-                    className={`w-full min-h-11 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-sm shadow-emerald-950/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                    className={`w-full min-h-11 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm shadow-emerald-950/20 transition-all duration-200 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed ${
                       !selectedParcel?.geojson ? 'opacity-50 cursor-not-allowed active:scale-100 hover:bg-emerald-600' : ''
                     }`}
                   >
@@ -937,22 +941,22 @@ export default function Dashboard() {
 
                   {/* Tombol Hapus Data Khusus Role Admin */}
                   {isAdmin && (
-                    <div className="pt-2 border-t border-slate-800/80">
+                    <div className="pt-2 border-t border-slate-200">
                       <button
                         type="button"
                         onClick={() => handleDeleteParcel(selectedParcel)}
                         disabled={isDeleting}
-                        className="w-full min-h-11 py-2.5 px-3 rounded-xl bg-rose-950/50 hover:bg-rose-900/80 border border-rose-700/80 text-rose-200 hover:text-white font-medium text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        className="w-full min-h-11 py-2.5 px-3 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all duration-200 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         title={`Hapus data NIB ${selectedParcel.nib} dari database (Akses Khusus Admin)`}
                       >
                         {isDeleting ? (
                           <>
-                            <LoaderCircle className="h-3.5 w-3.5 animate-spin text-rose-300" />
+                            <LoaderCircle className="h-3.5 w-3.5 animate-spin text-white" />
                             <span>Menghapus data persil...</span>
                           </>
                         ) : (
                           <>
-                            <Trash2 className="h-3.5 w-3.5 text-rose-400" />
+                            <Trash2 className="h-3.5 w-3.5 text-white" />
                             <span>Hapus Data Persil (Admin)</span>
                           </>
                         )}
@@ -964,11 +968,11 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-16 px-4 text-center flex-1">
-                <div className="h-12 w-12 rounded-2xl bg-slate-800/70 border border-slate-700/60 flex items-center justify-center text-slate-400 mb-3 shadow-inner">
-                  <Layers className="h-6 w-6 text-emerald-400" />
+                <div className="h-12 w-12 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 mb-3 shadow-inner">
+                  <Layers className="h-6 w-6 text-emerald-600" />
                 </div>
-                <h3 className="text-sm font-semibold text-slate-200">Pilih Bidang Tanah</h3>
-                <p className="text-xs text-slate-400 mt-1.5 max-w-[240px] leading-relaxed">
+                <h3 className="text-sm font-semibold text-slate-800">Pilih Bidang Tanah</h3>
+                <p className="text-xs text-slate-500 mt-1.5 max-w-[240px] leading-relaxed">
                   Klik salah satu bidang di peta spasial atau pilih dari daftar di samping untuk meninjau status KKP, kalkulasi luas, dan dokumentasi survei.
                 </p>
               </div>
