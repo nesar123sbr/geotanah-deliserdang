@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { supabase, type ParcelData, parsePhotoPaths } from '@/lib/supabase';
 import { 
   ShieldCheck, AlertTriangle, Layers, 
-  Compass, Activity, CheckCircle2, ChevronRight, HelpCircle,
+  Compass, CheckCircle2, ChevronRight, HelpCircle,
   Download, FileCode, Search, Camera, ExternalLink, MapPin, RotateCcw,
   Trash2, LoaderCircle, LogIn, LogOut, User
 } from 'lucide-react';
@@ -665,11 +665,6 @@ export default function Dashboard() {
 
         {/* Panel Tengah (Desktop) / Atas Layar (Mobile): Peta Spasial Leaflet */}
         <div className="order-1 lg:order-2 lg:col-span-6 bg-white border border-slate-200/70 rounded-2xl p-2 h-[50vh] min-h-[380px] lg:h-[calc(100vh-140px)] lg:min-h-[620px] shadow-sm relative overflow-hidden flex flex-col">
-          {/* Sembunyikan badge judul di HP (hidden md:flex) */}
-          <div className="hidden md:flex absolute top-4 left-4 z-10 bg-white/95 backdrop-blur-md border border-slate-200/80 px-3 py-1.5 rounded-xl text-xs items-center gap-2 shadow-sm text-slate-700 font-medium">
-            <Activity className="h-3.5 w-3.5 text-emerald-600" />
-            <span>Sidikalang Cadastral Viewer</span>
-          </div>
           <ParcelMap 
             parcels={filteredParcels} 
             selectedParcel={selectedParcel} 

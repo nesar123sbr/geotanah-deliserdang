@@ -102,8 +102,8 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel, isA
 
   if (!mounted) {
     return (
-      <div className="h-full w-full flex items-center justify-center bg-slate-900 text-slate-400 font-mono text-xs">
-        Menyiapkan layer peta spasial Sidikalang...
+      <div className="h-full w-full flex items-center justify-center bg-slate-100 text-slate-500 font-mono text-xs">
+        Menyiapkan layer peta spasial...
       </div>
     );
   }
