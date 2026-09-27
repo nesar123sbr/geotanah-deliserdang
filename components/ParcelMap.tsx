@@ -26,7 +26,7 @@ function MapUpdater({ selectedParcel }: Pick<MapProps, 'selectedParcel'>) {
         const data = JSON.parse(geojson);
         const bounds = L.geoJSON(data).getBounds();
         if (bounds.isValid()) {
-          map.flyToBounds(bounds, { padding: [50, 50], duration: 0.8, maxZoom: 18 });
+          map.flyToBounds(bounds, { padding: [50, 50], duration: 0.8, maxZoom: 20 });
           return;
         }
       } catch {
@@ -38,7 +38,7 @@ function MapUpdater({ selectedParcel }: Pick<MapProps, 'selectedParcel'>) {
       const numLat = Number(lat);
       const numLng = Number(lng);
       if (Number.isFinite(numLat) && Number.isFinite(numLng)) {
-        map.flyTo([numLat, numLng], 18, { duration: 0.8 });
+        map.flyTo([numLat, numLng], 19, { duration: 0.8 });
       }
     }
   }, [map, geojson, lat, lng, selectedParcel?.id]);
@@ -124,6 +124,7 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel, isA
       <MapContainer 
         center={[2.7485, 98.3175]} 
         zoom={16} 
+        maxZoom={22}
         scrollWheelZoom={true} 
         preferCanvas={true}
         className="h-full w-full rounded-2xl"
@@ -131,16 +132,20 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel, isA
         <MapUpdater selectedParcel={selectedParcel} />
         
         <LayersControl position="topright">
-          <LayersControl.BaseLayer checked name="Satelit ESRI">
+          <LayersControl.BaseLayer checked name="Google Satellite Hybrid">
             <TileLayer
-              attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              attribution="&copy; Google Maps"
+              url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+              maxZoom={22}
+              maxNativeZoom={20}
             />
           </LayersControl.BaseLayer>
           <LayersControl.BaseLayer name="Vektor Jalan (OSM)">
             <TileLayer
               attribution='&copy; OpenStreetMap'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maxZoom={22}
+              maxNativeZoom={19}
             />
           </LayersControl.BaseLayer>
         </LayersControl>

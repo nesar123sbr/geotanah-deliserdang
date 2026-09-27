@@ -382,46 +382,48 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
-      <header className="border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md px-4 sm:px-6 py-3.5 flex flex-wrap gap-3 items-center justify-between sticky top-0 z-50 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white shrink-0">
-            <Compass className="h-5 w-5" />
+      <header className="border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md px-3 sm:px-6 py-2.5 sm:py-3.5 flex flex-wrap gap-2.5 sm:gap-3 items-center justify-between sticky top-0 z-50 shadow-sm">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white shrink-0">
+            <Compass className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-bold text-base sm:text-lg tracking-tight text-white">GeoTanah Dairi</h1>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-emerald-950/80 border border-emerald-800 text-emerald-400">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <h1 className="font-bold text-sm sm:text-lg tracking-tight text-white">GeoTanah Dairi</h1>
+              <span className="hidden xs:inline-block px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-mono bg-emerald-950/80 border border-emerald-800 text-emerald-400">
                 PostGIS v2 Spheroid
               </span>
             </div>
-            <p className="text-xs text-slate-400">Monitoring Kadastral & Inventarisasi KKP Kantah Dairi</p>
+            <p className="text-[11px] sm:text-xs text-slate-400">Monitoring Kadastral & Inventarisasi KKP Kantah Dairi</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <button
             type="button"
             onClick={() => setIsExportModalOpen(true)}
             disabled={isExporting || loading}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700/90 border border-slate-700 px-4 text-sm font-semibold text-slate-200 hover:text-white active:scale-[0.98] transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="inline-flex min-h-10 sm:min-h-11 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-slate-800 hover:bg-slate-700/90 border border-slate-700 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-slate-200 hover:text-white active:scale-[0.98] transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             title="Export Geodatabase lengkap (GeoJSON, CSV, Rekap, dan Foto) ke format ZIP"
           >
-            <Download className="h-4 w-4 text-emerald-400" />
-            <span>Export Geodatabase</span>
+            <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-400" />
+            <span className="hidden sm:inline">Export Geodatabase</span>
+            <span className="sm:hidden">Export</span>
           </button>
           <Link 
             href="/survey" 
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-500 active:scale-[0.98] transition-all shadow-sm shadow-emerald-950/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+            className="inline-flex min-h-10 sm:min-h-11 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-emerald-600 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-white hover:bg-emerald-500 active:scale-[0.98] transition-all shadow-sm shadow-emerald-950/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
           >
-            <Camera className="h-4 w-4" />
-            <span>Buka Mode Sensus</span>
+            <Camera className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Buka Mode Sensus</span>
+            <span className="sm:hidden">Sensus</span>
           </Link>
 
           {/* Autentikasi Pengguna & Role Badge */}
           {currentUserEmail ? (
-            <div className="flex items-center gap-2 bg-slate-900/90 border border-slate-700/90 px-3 py-1.5 rounded-xl text-xs shadow-xs">
+            <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-900/90 border border-slate-700/90 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs shadow-xs">
               <User className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-              <span className="text-slate-300 font-mono text-[11px] max-w-[130px] sm:max-w-[180px] truncate" title={currentUserEmail}>
+              <span className="text-slate-300 font-mono text-[11px] max-w-[100px] sm:max-w-[180px] truncate" title={currentUserEmail}>
                 {currentUserEmail}
               </span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
@@ -442,9 +444,9 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => setIsAuthModalOpen(true)}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700/90 border border-slate-700 px-3.5 text-xs font-semibold text-slate-200 hover:text-white active:scale-[0.98] transition-all cursor-pointer shadow-sm"
+              className="inline-flex min-h-10 sm:min-h-11 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-slate-800 hover:bg-slate-700/90 border border-slate-700 px-3 sm:px-3.5 text-xs font-semibold text-slate-200 hover:text-white active:scale-[0.98] transition-all cursor-pointer shadow-sm"
             >
-              <LogIn className="h-4 w-4 text-emerald-400" />
+              <LogIn className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-400" />
               <span>Login / Masuk</span>
             </button>
           )}
@@ -456,8 +458,9 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="flex-1 p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5 max-w-[1700px] w-full mx-auto">
-        <div className="lg:col-span-3 flex flex-col gap-4">
+      <main className="flex-1 p-3 sm:p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 max-w-[1700px] w-full mx-auto">
+        {/* Panel Kiri (Desktop) / Bawah Peta (Mobile): Daftar Persil & Statistik */}
+        <div className="order-2 lg:order-1 lg:col-span-3 flex flex-col gap-4">
           {loadError && (
             <div role="alert" className="rounded-2xl border border-rose-800/80 bg-rose-950/70 p-4 text-xs text-rose-200 shadow-sm space-y-2.5">
               <div className="flex items-center gap-2 font-semibold text-rose-300">
@@ -660,7 +663,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="lg:col-span-6 bg-slate-900/80 border border-slate-800 rounded-2xl p-2 min-h-[480px] lg:min-h-[620px] shadow-xl relative overflow-hidden flex flex-col">
+        {/* Panel Tengah (Desktop) / Atas Layar (Mobile): Peta Spasial Leaflet */}
+        <div className="order-1 lg:order-2 lg:col-span-6 bg-slate-900/80 border border-slate-800 rounded-2xl p-2 h-[50vh] min-h-[380px] lg:h-[calc(100vh-140px)] lg:min-h-[620px] shadow-xl relative overflow-hidden flex flex-col">
           <div className="absolute top-4 left-4 z-10 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 shadow-lg">
             <Activity className="h-3.5 w-3.5 text-emerald-400" />
             <span className="text-slate-300 font-medium">Sidikalang Cadastral Viewer</span>
@@ -674,7 +678,8 @@ export default function Dashboard() {
           />
         </div>
 
-        <div className="lg:col-span-3 flex flex-col gap-4">
+        {/* Panel Kanan (Desktop) / Paling Bawah (Mobile): Inspector Persil Dairi */}
+        <div className="order-3 lg:order-3 lg:col-span-3 flex flex-col gap-4">
           <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-1.5">
               <ShieldCheck className="h-4 w-4 text-emerald-400" /> Inspector Persil Dairi

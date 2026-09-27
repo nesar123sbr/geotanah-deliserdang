@@ -5,18 +5,17 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { 
   ArrowLeft, Camera, CheckCircle2, LocateFixed, LoaderCircle, 
-  FileUp, AlertCircle, Trash2, RefreshCw, X, LogIn, LogOut, User 
+  FileUp, AlertCircle, Trash2, RefreshCw, X 
 } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 import { supabase, type ProgramType } from '@/lib/supabase';
 import type { SurveyPolygonResult } from '@/components/SurveyDrawMap';
 import { parseGeoFile, formatAreaM2 } from '@/lib/parseGeoFile';
-import AuthModal from '@/components/AuthModal';
 
 const SurveyDrawMap = dynamic(() => import('@/components/SurveyDrawMap'), {
   ssr: false,
   loading: () => (
-    <div className="h-[340px] sm:h-[380px] w-full rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-xs text-slate-500 font-mono">
+    <div className="h-[50vh] min-h-[350px] sm:h-[420px] md:h-[480px] w-full rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-xs text-slate-500 font-mono">
       Memuat Peta Delineasi Spasial...
     </div>
   ),
@@ -105,10 +104,8 @@ export default function SurveyPage() {
   const [locating, setLocating] = useState(false);
   const [programType, setProgramType] = useState<ProgramType>('Reguler');
 
-  // Sesi pengguna & role
+  // Sesi pengguna terdeteksi (opsional untuk metadata surveyor)
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
-  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Multi-photo state (hingga 3 foto)
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -155,40 +152,24 @@ export default function SurveyPage() {
     };
   }, []);
 
-  // Sinkronisasi status autentikasi surveyor
+  // Deteksi sesi pengguna jika sudah login sebelumnya (opsional untuk catatan warkah detail_lokasi.txt)
   useEffect(() => {
     async function loadUser() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setCurrentUserEmail(user.email ?? null);
-        const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-        setCurrentUserRole(profile?.role ?? (user.user_metadata?.role as string) ?? 'surveyor');
-      } else {
-        setCurrentUserEmail(null);
-        setCurrentUserRole(null);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        setCurrentUserEmail(user?.email ?? null);
+      } catch {
+        // Abaikan jika tidak ada sesi
       }
     }
     void loadUser();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setCurrentUserEmail(session.user.email ?? null);
-        void loadUser();
-      } else {
-        setCurrentUserEmail(null);
-        setCurrentUserRole(null);
-      }
+      setCurrentUserEmail(session?.user?.email ?? null);
     });
 
     return () => authListener.subscription.unsubscribe();
   }, []);
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setCurrentUserEmail(null);
-    setCurrentUserRole(null);
-    window.alert('Anda telah keluar.');
-  };
 
   const handleImportGeoFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -539,8 +520,8 @@ export default function SurveyPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:py-10">
-      <div className="mx-auto max-w-xl">
+    <main className="min-h-screen bg-slate-50 px-3 sm:px-6 py-4 sm:py-8 text-slate-900">
+      <div className="mx-auto max-w-2xl lg:max-w-3xl">
         <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
           <Link 
             href="/" 
@@ -549,35 +530,16 @@ export default function SurveyPage() {
             <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Kembali ke peta
           </Link>
 
-          {/* User Auth Session Widget di Halaman Survei */}
-          {currentUserEmail ? (
-            <div className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-3 py-2 text-xs shadow-xs">
-              <User className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-              <span className="font-mono text-slate-700 font-medium max-w-[130px] truncate" title={currentUserEmail}>
+          {/* Akses Terbuka Tanpa Hambatan Login (Input Terbuka) */}
+          <div className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200/90 px-3.5 py-2 text-xs shadow-xs text-slate-700">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-semibold text-emerald-800">Mode Input Terbuka</span>
+            {currentUserEmail && (
+              <span className="hidden sm:inline font-mono text-[11px] text-slate-500 border-l border-slate-200 pl-2">
                 {currentUserEmail}
               </span>
-              <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                {currentUserRole === 'admin' ? 'Admin' : 'Surveyor'}
-              </span>
-              <button
-                type="button"
-                onClick={handleLogout}
-                title="Keluar akun"
-                className="text-slate-400 hover:text-rose-600 ml-1 transition-colors cursor-pointer"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsAuthModalOpen(true)}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-3.5 py-2.5 text-xs font-semibold shadow-xs transition-all cursor-pointer"
-            >
-              <LogIn className="h-3.5 w-3.5" />
-              <span>Login Surveyor</span>
-            </button>
-          )}
+            )}
+          </div>
         </div>
 
         <header className="mb-6">
@@ -991,19 +953,6 @@ export default function SurveyPage() {
           <p className="pb-6 text-center text-xs text-slate-500">Pastikan data dan foto sesuai dengan kondisi lapangan sebelum menyimpan.</p>
         </form>
       </div>
-
-      {/* Modal Dialog Login / Register untuk Surveyor */}
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onSuccess={() => {
-          supabase.auth.getUser().then(({ data: { user } }) => {
-            if (user) {
-              setCurrentUserEmail(user.email ?? null);
-            }
-          });
-        }}
-      />
     </main>
   );
 }

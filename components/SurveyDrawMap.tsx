@@ -105,10 +105,10 @@ function MapController({
   const map = useMap();
   useEffect(() => {
     if (boundsTarget && boundsTarget.length >= 3) {
-      map.fitBounds(L.latLngBounds(boundsTarget), { padding: [30, 30], maxZoom: 18 });
+      map.fitBounds(L.latLngBounds(boundsTarget), { padding: [30, 30], maxZoom: 20 });
       onBoundsDone();
     } else if (flyTarget) {
-      map.flyTo(flyTarget, 18, { duration: 0.8 });
+      map.flyTo(flyTarget, 19, { duration: 0.8 });
       onFlyDone();
     }
   }, [map, flyTarget, boundsTarget, onFlyDone, onBoundsDone]);
@@ -271,7 +271,7 @@ export default function SurveyDrawMap({
 
   if (!mounted) {
     return (
-      <div className="h-[340px] sm:h-[380px] w-full rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-xs text-slate-500 font-mono">
+      <div className="h-[50vh] min-h-[350px] sm:h-[420px] md:h-[480px] w-full rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-xs text-slate-500 font-mono">
         Menyiapkan peta kerja delineasi...
       </div>
     );
@@ -318,13 +318,14 @@ export default function SurveyDrawMap({
       </div>
 
       {/* Map Container */}
-      <div className="h-[340px] sm:h-[380px] w-full">
+      <div className="h-[50vh] min-h-[350px] sm:h-[420px] md:h-[480px] w-full">
         <MapContainer
           center={initialCenter}
           zoom={17}
+          maxZoom={22}
           scrollWheelZoom={true}
           preferCanvas={true}
-          className="h-full w-full"
+          className={`h-full w-full ${!isLocked && !disabled ? 'cursor-crosshair' : ''}`}
         >
           <MapController
             flyTarget={flyTarget}
@@ -335,16 +336,20 @@ export default function SurveyDrawMap({
           <MapEvents onMapClick={handleMapClick} isLocked={isLocked || disabled} />
 
           <LayersControl position="bottomleft">
-            <LayersControl.BaseLayer checked name="Satelit ESRI">
+            <LayersControl.BaseLayer checked name="Google Satellite Hybrid">
               <TileLayer
-                attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                attribution="&copy; Google Maps"
+                url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+                maxZoom={22}
+                maxNativeZoom={20}
               />
             </LayersControl.BaseLayer>
             <LayersControl.BaseLayer name="Vektor Jalan (OSM)">
               <TileLayer
                 attribution='&copy; OpenStreetMap'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                maxZoom={22}
+                maxNativeZoom={19}
               />
             </LayersControl.BaseLayer>
           </LayersControl>
