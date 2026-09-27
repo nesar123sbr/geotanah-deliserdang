@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, Polygon, useMap, useMapEvents, LayersControl } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { RotateCcw, Check, Undo, LocateFixed, Edit3, CheckCircle2, LoaderCircle } from 'lucide-react';
+import { RotateCcw, Check, Undo, LocateFixed, Edit3, CheckCircle2, LoaderCircle, Crosshair, MapPin } from 'lucide-react';
 
 export interface SurveyPolygonResult {
   geojson: string | null;
@@ -96,13 +96,22 @@ function MapController({
   onFlyDone,
   boundsTarget,
   onBoundsDone,
+  onMapReady,
 }: {
   flyTarget: [number, number] | null;
   onFlyDone: () => void;
   boundsTarget: [number, number][] | null;
   onBoundsDone: () => void;
+  onMapReady?: (map: L.Map) => void;
 }) {
   const map = useMap();
+
+  useEffect(() => {
+    if (onMapReady) {
+      onMapReady(map);
+    }
+  }, [map, onMapReady]);
+
   useEffect(() => {
     if (boundsTarget && boundsTarget.length >= 3) {
       map.fitBounds(L.latLngBounds(boundsTarget), { padding: [30, 30], maxZoom: 20 });
@@ -180,6 +189,11 @@ export default function SurveyDrawMap({
   const [boundsTarget, setBoundsTarget] = useState<[number, number][] | null>(null);
   const [liveLocation, setLiveLocation] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [isLocatingLive, setIsLocatingLive] = useState(false);
+  const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
+
+  const handleMapReady = useCallback((map: L.Map) => {
+    setMapInstance(map);
+  }, []);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -334,6 +348,35 @@ export default function SurveyDrawMap({
     setFlyTarget(null);
   }, []);
 
+  // 1. Rekam koordinat tengah bidikan (Crosshair Target)
+  const handleRecordCrosshairCenter = useCallback(() => {
+    if (disabled || isLocked || !mapInstance) return;
+    const center = mapInstance.getCenter();
+    const lat = Number(center.lat.toFixed(7));
+    const lng = Number(center.lng.toFixed(7));
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    const next: [number, number][] = [...points, [lat, lng]];
+    setPoints(next);
+    syncPolygonToParent(next);
+  }, [disabled, isLocked, mapInstance, points, syncPolygonToParent]);
+
+  // 2. Rekam koordinat GPS posisi surveyor saat ini (Snap to GPS)
+  const handleRecordGpsLocation = useCallback(() => {
+    if (disabled || isLocked) return;
+
+    if (!activePosition || !Number.isFinite(activePosition.lat) || !Number.isFinite(activePosition.lng)) {
+      window.alert('Titik GPS belum terdeteksi. Silakan tunggu sinyal GPS atau klik "Pusatkan ke Lokasi Saya" terlebih dahulu.');
+      return;
+    }
+
+    const lat = Number(activePosition.lat.toFixed(7));
+    const lng = Number(activePosition.lng.toFixed(7));
+    const next: [number, number][] = [...points, [lat, lng]];
+    setPoints(next);
+    syncPolygonToParent(next);
+  }, [disabled, isLocked, activePosition, points, syncPolygonToParent]);
+
   if (!mounted) {
     return (
       <div className="h-[50vh] min-h-[350px] sm:h-[420px] md:h-[480px] w-full rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-xs text-slate-500 font-mono">
@@ -394,7 +437,7 @@ export default function SurveyDrawMap({
       </div>
 
       {/* Map Container */}
-      <div className="h-[50vh] min-h-[350px] sm:h-[420px] md:h-[480px] w-full">
+      <div className="relative h-[50vh] min-h-[350px] sm:h-[420px] md:h-[480px] w-full">
         <MapContainer
           center={initialCenter}
           zoom={17}
@@ -408,6 +451,7 @@ export default function SurveyDrawMap({
             onFlyDone={handleFlyDone}
             boundsTarget={boundsTarget}
             onBoundsDone={() => setBoundsTarget(null)}
+            onMapReady={handleMapReady}
           />
           <MapEvents onMapClick={handleMapClick} isLocked={isLocked || disabled} />
 
@@ -481,7 +525,52 @@ export default function SurveyDrawMap({
             />
           ))}
         </MapContainer>
+
+        {/* Crosshair Target (Bidikan Tengah Peta) */}
+        {!isLocked && !disabled && (
+          <div
+            className="absolute inset-0 flex items-center justify-center pointer-events-none z-[800]"
+            aria-hidden="true"
+          >
+            <div className="relative flex items-center justify-center">
+              {/* Lingkaran Luar Bidikan */}
+              <div className="w-8 h-8 rounded-full border-2 border-red-500 shadow-sm bg-red-500/10 flex items-center justify-center">
+                {/* Titik Inti Pusat */}
+                <div className="w-1.5 h-1.5 rounded-full bg-red-600 shadow-sm" />
+              </div>
+              {/* Garis Horizontal Crosshair */}
+              <div className="absolute w-12 h-0.5 bg-red-500 shadow-xs pointer-events-none" />
+              {/* Garis Vertikal Crosshair */}
+              <div className="absolute h-12 w-0.5 bg-red-500 shadow-xs pointer-events-none" />
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Bar Tombol Aksi Cepat Digitasi (Bidikan Crosshair & Snap to GPS) */}
+      {!isLocked && !disabled && (
+        <div className="p-2.5 bg-slate-900 border-t border-slate-800 grid grid-cols-2 gap-2 text-xs">
+          <button
+            type="button"
+            onClick={handleRecordCrosshairCenter}
+            className="min-h-11 py-2.5 px-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold flex items-center justify-center gap-1.5 sm:gap-2 shadow-md shadow-red-950/40 active:scale-[0.98] transition-all cursor-pointer"
+            title="Rekam koordinat titik tengah bidikan (Crosshair) ke dalam poligon batas"
+          >
+            <Crosshair className="h-4 w-4 shrink-0" />
+            <span className="truncate">🎯 Rekam Titik Bidikan</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleRecordGpsLocation}
+            className="min-h-11 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold flex items-center justify-center gap-1.5 sm:gap-2 shadow-md shadow-blue-950/40 active:scale-[0.98] transition-all cursor-pointer"
+            title="Rekam koordinat GPS posisi surveyor saat ini ke dalam poligon batas"
+          >
+            <MapPin className="h-4 w-4 shrink-0" />
+            <span className="truncate">📍 Rekam Titik GPS Saya</span>
+          </button>
+        </div>
+      )}
 
       {/* Bottom Action Controls Bar */}
       <div className="p-3 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
