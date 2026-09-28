@@ -419,16 +419,61 @@ export default function Dashboard() {
         }
       }
 
-      // 2. Hapus baris data di tabel parcels
-      const { error: dbError } = await supabase
-        .from('parcels')
-        .delete()
-        .eq('id', parcel.id);
+      // 2. Hapus baris data di tabel parcels melalui server API route terlebih dahulu (menggunakan hak server/service role)
+      let deletedSuccessfully = false;
+      let deleteErrorMessage = '';
 
-      if (dbError) {
-        throw new Error(
-          `Gagal menghapus baris database (${dbError.code || 'DB_ERROR'}): ${dbError.message || dbError.details || JSON.stringify(dbError)}`
-        );
+      try {
+        const res = await fetch(`/api/parcels/${encodeURIComponent(parcel.id)}`, {
+          method: 'DELETE',
+        });
+        const resData = await res.json().catch(() => null);
+
+        if (res.ok && resData?.success) {
+          deletedSuccessfully = true;
+        } else if (resData?.error) {
+          deleteErrorMessage = resData.error;
+          console.warn('[handleDeleteParcel] Respon API server:', resData);
+        }
+      } catch (apiErr) {
+        console.warn('[handleDeleteParcel] API server route tidak terjangkau, mencoba fallback client:', apiErr);
+      }
+
+      // Jika belum terhapus lewat API server, coba panggil RPC delete_parcel_admin (SECURITY DEFINER)
+      if (!deletedSuccessfully) {
+        try {
+          const { data: rpcRes, error: rpcErr } = await supabase.rpc(
+            // @ts-expect-error RPC delete_parcel_admin
+            'delete_parcel_admin',
+            { p_parcel_id: parcel.id }
+          );
+          if (!rpcErr && (rpcRes as { success?: boolean })?.success) {
+            deletedSuccessfully = true;
+          }
+        } catch {
+          // Lanjut ke query langsung jika RPC belum tersedia
+        }
+      }
+
+      // Jika masih belum terhapus, lakukan query delete langsung dari client
+      if (!deletedSuccessfully) {
+        const { error: dbError } = await supabase
+          .from('parcels')
+          .delete()
+          .eq('id', parcel.id);
+
+        if (dbError) {
+          const detail = dbError.message || dbError.details || deleteErrorMessage || JSON.stringify(dbError);
+          if (dbError.code === '42501' || detail.includes('permission denied for table profiles')) {
+            throw new Error(
+              `Akses ditolak (Error 42501: permission denied for table profiles).\n\nSolusi: Buka Supabase Dashboard > SQL Editor lalu jalankan file 'fix_delete_permissions.sql' yang telah disediakan di root proyek untuk memberikan hak akses RLS tabel profiles.`
+            );
+          }
+          throw new Error(
+            `Gagal menghapus baris database (${dbError.code || 'DB_ERROR'}): ${detail}`
+          );
+        }
+        deletedSuccessfully = true;
       }
 
       // 3. Perbarui state UI lokal
@@ -956,22 +1001,15 @@ export default function Dashboard() {
 
                     const safeIdx = Math.min(activePhotoIdx, photoPaths.length - 1);
                     const activePath = photoPaths[safeIdx] || photoPaths[0];
-                    const fullUrl = supabase.storage.from('parcel-photos').getPublicUrl(activePath).data.publicUrl;
-                    const thumbUrl = supabase.storage.from('parcel-photos').getPublicUrl(activePath, {
-                      transform: {
-                        width: 600,
-                        height: 450,
-                        resize: 'cover',
-                        quality: 65,
-                      },
-                    }).data.publicUrl;
+                    // Gunakan URL murni tanpa transform agar kompatibel penuh dengan Supabase Free Tier
+                    const photoUrl = supabase.storage.from('parcel-photos').getPublicUrl(activePath).data.publicUrl;
 
                     return (
                       <div className="space-y-2">
                         {/* Pratinjau Utama Foto Aktif */}
                         <div className="relative">
                           <a
-                            href={fullUrl}
+                            href={photoUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="group relative block overflow-hidden rounded-xl border border-slate-200 bg-slate-100 aspect-video w-full shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
@@ -979,7 +1017,7 @@ export default function Dashboard() {
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={thumbUrl}
+                              src={photoUrl}
                               alt={`Foto lapangan NIB ${selectedParcel.nib} (#${safeIdx + 1})`}
                               loading="lazy"
                               decoding="async"
@@ -1001,9 +1039,8 @@ export default function Dashboard() {
                         {photoPaths.length > 1 && (
                           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5">
                             {photoPaths.map((pPath, idx) => {
-                              const miniThumb = supabase.storage.from('parcel-photos').getPublicUrl(pPath, {
-                                transform: { width: 120, height: 120, resize: 'cover', quality: 50 },
-                              }).data.publicUrl;
+                              // URL murni tanpa transform untuk thumbnail
+                              const miniThumbUrl = supabase.storage.from('parcel-photos').getPublicUrl(pPath).data.publicUrl;
                               const isSelected = idx === safeIdx;
 
                               return (
@@ -1020,9 +1057,12 @@ export default function Dashboard() {
                                 >
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img
-                                    src={miniThumb}
+                                    src={miniThumbUrl}
                                     alt={`Thumbnail ${idx + 1}`}
                                     className="h-full w-full object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                    }}
                                   />
                                   <span className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] font-mono text-center leading-tight">
                                     #{idx + 1}
