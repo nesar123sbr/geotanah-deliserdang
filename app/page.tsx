@@ -406,20 +406,7 @@ export default function Dashboard() {
 
       const filesToRemove = Array.from(filesToRemoveSet);
 
-      // 1. Hapus bersih seluruh berkas foto dari bucket Supabase Storage secara bertahap
-      if (filesToRemove.length > 0) {
-        for (let i = 0; i < filesToRemove.length; i += 50) {
-          const chunk = filesToRemove.slice(i, i + 50);
-          const { error: storageDelError } = await supabase.storage
-            .from('parcel-photos')
-            .remove(chunk);
-          if (storageDelError) {
-            console.warn('[handleDeleteParcel] Sebagian berkas storage gagal dihapus:', storageDelError);
-          }
-        }
-      }
-
-      // 2. Hapus baris data di tabel parcels melalui server API route terlebih dahulu (menggunakan hak server/service role)
+      // 1. Hapus baris data di tabel parcels melalui server API route terlebih dahulu (menggunakan hak server/service role)
       let deletedSuccessfully = false;
       let deleteErrorMessage = '';
 
@@ -474,6 +461,19 @@ export default function Dashboard() {
           );
         }
         deletedSuccessfully = true;
+      }
+
+      // 2. Setelah database berhasil dihapus, bersihkan seluruh berkas foto dari bucket Supabase Storage secara bertahap
+      if (filesToRemove.length > 0) {
+        for (let i = 0; i < filesToRemove.length; i += 50) {
+          const chunk = filesToRemove.slice(i, i + 50);
+          const { error: storageDelError } = await supabase.storage
+            .from('parcel-photos')
+            .remove(chunk);
+          if (storageDelError) {
+            console.warn('[handleDeleteParcel] Sebagian berkas storage gagal dihapus:', storageDelError);
+          }
+        }
       }
 
       // 3. Perbarui state UI lokal

@@ -4,10 +4,9 @@ import type { Database } from '@/types/database';
 
 function getAdminClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  // Prioritaskan Service Role Key jika dikonfigurasi di server
+  // Prioritaskan Service Role Key di server environment (JANGAN gunakan prefix NEXT_PUBLIC_ untuk service role)
   const serviceRoleKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     '';
 

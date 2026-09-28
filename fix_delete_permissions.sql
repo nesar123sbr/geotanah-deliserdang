@@ -23,18 +23,17 @@ ON public.profiles FOR SELECT
 TO authenticated, anon, service_role 
 USING (true);
 
--- 3. Pastikan policy DELETE pada tabel parcels mengizinkan penghapusan
+-- 3. Pastikan policy DELETE pada tabel parcels diamankan (hanya admin yang dapat menghapus langsung)
+-- Catatan: Penghapusan via aplikasi menggunakan RPC delete_parcel_admin (SECURITY DEFINER)
 DROP POLICY IF EXISTS "Allow delete parcels" ON public.parcels;
-CREATE POLICY "Allow delete parcels"
-ON public.parcels FOR DELETE
-TO authenticated, anon, service_role
-USING (true);
 
--- 4. Berikan izin pada tabel audit_log jika ada trigger pencatatan riwayat penghapusan
+-- 4. Amankan tabel audit_log (hanya service_role / trigger SECURITY DEFINER yang dapat menulis)
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'audit_log') THEN
-    GRANT ALL ON public.audit_log TO authenticated, anon, service_role;
+    REVOKE ALL ON public.audit_log FROM anon;
+    REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.audit_log FROM authenticated;
+    GRANT SELECT ON public.audit_log TO authenticated;
   END IF;
 END $$;
 

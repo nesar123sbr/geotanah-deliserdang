@@ -643,10 +643,22 @@ export async function executeExportGeodatabase(
     onProgress?.(`Memulai pengunduhan foto (0/${totalJobs})...`, 30);
 
     await asyncPool(4, photoJobs, async (job) => {
+      if (!job.storagePath || !job.storagePath.trim()) {
+        missingPhotos.push({
+          nib: job.nib,
+          reason: 'Path foto kosong atau tidak terdaftar.',
+        });
+        return;
+      }
+
       try {
         const { data: urlData } = supabase.storage
           .from('parcel-photos')
-          .getPublicUrl(job.storagePath);
+          .getPublicUrl(job.storagePath.trim());
+
+        if (!urlData?.publicUrl) {
+          throw new Error('URL publik foto tidak tersedia dari Storage.');
+        }
 
         const buffer = await fetchWithRetry(urlData.publicUrl, 2);
         photoBufferMap.set(job.zipRelativePath, buffer);
