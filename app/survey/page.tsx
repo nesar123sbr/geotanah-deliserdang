@@ -600,7 +600,8 @@ export default function SurveyPage() {
         uploadedPaths.push(photoPath);
       }
 
-      const combinedPhotoPath = uploadedPaths.join(',');
+      // Simpan array path foto dalam format JSON string agar tidak menempel dengan koma
+      const combinedPhotoPath = JSON.stringify(uploadedPaths);
 
       // Tentukan koordinat lat/lng dan akurasi
       const finalLat = (gps && validGps(gps)) ? gps.lat : surveyPolygon.centroid![0];

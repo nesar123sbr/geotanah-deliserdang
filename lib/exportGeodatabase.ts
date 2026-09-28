@@ -1,5 +1,5 @@
 import { zipSync, strToU8, type Zippable } from 'fflate';
-import { supabase, type ParcelData } from './supabase';
+import { supabase, type ParcelData, parsePhotoPaths } from './supabase';
 
 /**
  * Escapes values for RFC 4180 compliant CSV output.
@@ -11,6 +11,22 @@ function escapeCsv(val: unknown): string {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;
+}
+
+/**
+ * Escapes XML/KML/GPX text strings.
+ */
+function escapeXml(unsafe: string): string {
+  return unsafe.replace(/[<>&'"]/g, (c) => {
+    switch (c) {
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '&': return '&amp;';
+      case '\'': return '&apos;';
+      case '"': return '&quot;';
+      default: return c;
+    }
+  });
 }
 
 /**
@@ -50,32 +66,6 @@ export async function fetchWithRetry(url: string, retries = 2): Promise<ArrayBuf
     }
   }
   throw new Error('Gagal mengunduh berkas');
-}
-
-/**
- * Formats a clean photo filename for inside the ZIP archive:
- * e.g., 0206010100201_20260917.webp
- */
-export function getPhotoZipFileName(nib: string, surveyedAt?: string | null): string {
-  const cleanNib = nib.replace(/[^a-zA-Z0-9]/g, '');
-  let datePart = '';
-  if (surveyedAt) {
-    const d = new Date(surveyedAt);
-    if (!isNaN(d.getTime())) {
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      datePart = `${yyyy}${mm}${dd}`;
-    }
-  }
-  if (!datePart) {
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    datePart = `${yyyy}${mm}${dd}`;
-  }
-  return `${cleanNib}_${datePart}.webp`;
 }
 
 /**
@@ -121,7 +111,7 @@ export function generateReadmeText(params: {
       photoNotes = `Terdapat ${missingPhotos.length} foto yang tidak dapat diunduh (terlewat):\n` +
         missingPhotos.map((m) => `  - NIB ${m.nib}: ${m.reason}`).join('\n');
     } else {
-      photoNotes = `Semua (${totalPhotosDownloaded}) foto dokumentasi sensus berhasil diunduh dan diarsipkan tanpa kendala.`;
+      photoNotes = `Semua (${totalPhotosDownloaded}) foto dokumentasi sensus berhasil diunduh dan diarsipkan ke dalam folder masing-masing persil.`;
     }
   } else {
     photoNotes = 'Ekspor dilakukan dalam mode "Data Tabular & Spasial Saja" (tanpa menyertakan foto lapangan sensus).';
@@ -148,6 +138,16 @@ DAFTAR ISI & STRUKTUR ARSIP:
 │       Geodatabase spasial (FeatureCollection) format GeoJSON WGS84 (EPSG:4326).
 │       Dapat langsung diimpor ke QGIS, ArcGIS Pro, Google Earth, atau Avenza Maps.
 │
+├── kml/
+│   └── all_parcels.kml
+│       Format Keyhole Markup Language (KML 2.2) memuat poligon delineasi dan titik persil.
+│       Siap dibuka langsung di Google Earth Desktop/Web.
+│
+├── gpx/
+│   └── all_parcels.gpx
+│       Format GPS Exchange Format (GPX 1.1) berisi waypoints titik persil & tracks batas fisik.
+│       Dapat langsung ditransfer ke GPS Garmin / Avenza Maps lapangan.
+│
 ├── csv/
 │   ├── parcels_attributes.csv
 │   │   Tabel data atribut lengkap seluruh bidang tanah hasil sensus & verifikasi
@@ -161,8 +161,8 @@ DAFTAR ISI & STRUKTUR ARSIP:
 │       (Wakaf, MBR, Rumah Ibadah, Hibah, Reguler).
 │
 └── photos/
-    Foto dokumentasi patok / batas fisik sensus pertanahan (WebP terkompresi CDN).
-    Pola penamaan berkas: photos/{NIB}_{YYYYMMDD}.webp
+    └── [Nama_Pemilik]_[NIB]/
+        Foto dokumentasi lapangan sensus dikelompokkan rapi per bidang tanah.
 
 --------------------------------------------------------------------------------
 CATATAN TEKNIS & OPTIMASI BANDWIDTH:
@@ -170,8 +170,7 @@ CATATAN TEKNIS & OPTIMASI BANDWIDTH:
 - Sistem Koordinat Referensi: WGS 84 (EPSG:4326).
 - Format CSV menggunakan karakter pemisah koma (RFC 4180) dengan awalan UTF-8 BOM
   (\\uFEFF) untuk menjamin akurasi aksen karakter nama daerah / pemilik.
-- Foto lapangan dioptimasi secara adaptif melalui Supabase Image CDN (maksimal 800px,
-  kualitas 55% WebP) guna menghemat kuota transmisi dan memori perangkat mobile.
+- Seluruh poligon dan koordinat GPS diekspor secara konsisten di format GeoJSON, KML, dan GPX.
 
 --------------------------------------------------------------------------------
 STATUS PENGUNDUHAN FOTO LAPANGAN:
@@ -229,6 +228,159 @@ export function generateGeoJsonText(parcels: ParcelData[]): string {
   };
 
   return JSON.stringify(fc);
+}
+
+/**
+ * Generates KML 2.2 containing all parcels (polygons & GPS points)
+ */
+export function generateKmlText(parcels: ParcelData[]): string {
+  const placemarks: string[] = [];
+
+  for (const p of parcels) {
+    const name = `NIB ${p.nib} - ${p.owner_name || 'Tanpa Nama'}`;
+    const desc = [
+      `<![CDATA[`,
+      `<h3>${escapeXml(p.owner_name || 'Tanpa Nama')}</h3>`,
+      `<p><strong>NIB:</strong> ${escapeXml(p.nib)}</p>`,
+      `<p><strong>Desa / Kecamatan:</strong> ${escapeXml(p.village || '-')} / ${escapeXml(p.sub_district || '-')}</p>`,
+      `<p><strong>Klasifikasi Program:</strong> ${escapeXml(p.program_type || 'Reguler')}</p>`,
+      `<p><strong>Luas Surat:</strong> ${p.legal_area_m2} m²</p>`,
+      p.spatial_area_m2 ? `<p><strong>Luas Spasial:</strong> ${p.spatial_area_m2} m²</p>` : '',
+      p.status ? `<p><strong>Status:</strong> ${escapeXml(p.status)}</p>` : '',
+      `]]>`,
+    ].join('');
+
+    let geometryXml = '';
+
+    if (p.geojson) {
+      try {
+        const geom = typeof p.geojson === 'string' ? JSON.parse(p.geojson) : p.geojson;
+        if (geom && geom.type === 'Polygon' && Array.isArray(geom.coordinates)) {
+          const outerRing = geom.coordinates[0];
+          if (Array.isArray(outerRing) && outerRing.length >= 3) {
+            const coordsStr = outerRing
+              .map((pt: [number, number] | number[]) => `${pt[0]},${pt[1]},0`)
+              .join(' ');
+            geometryXml = `
+        <Polygon>
+          <extrude>1</extrude>
+          <altitudeMode>clampToGround</altitudeMode>
+          <outerBoundaryIs>
+            <LinearRing>
+              <coordinates>${coordsStr}</coordinates>
+            </LinearRing>
+          </outerBoundaryIs>
+        </Polygon>`;
+          }
+        } else if (geom && geom.type === 'MultiPolygon' && Array.isArray(geom.coordinates)) {
+          const polys = geom.coordinates.map((poly: [number, number][][]) => {
+            const outerRing = poly[0];
+            const coordsStr = outerRing.map((pt) => `${pt[0]},${pt[1]},0`).join(' ');
+            return `
+          <Polygon>
+            <outerBoundaryIs>
+              <LinearRing>
+                <coordinates>${coordsStr}</coordinates>
+              </LinearRing>
+            </outerBoundaryIs>
+          </Polygon>`;
+          }).join('');
+          geometryXml = `
+        <MultiGeometry>${polys}
+        </MultiGeometry>`;
+        }
+      } catch (err) {
+        console.warn(`[generateKmlText] Gagal parse koordinat NIB ${p.nib}:`, err);
+      }
+    }
+
+    if (!geometryXml) {
+      const lat = p.gps_lat ?? p.centroid_lat;
+      const lng = p.gps_lng ?? p.centroid_lng;
+      if (lat !== null && lat !== undefined && lng !== null && lng !== undefined) {
+        geometryXml = `
+        <Point>
+          <coordinates>${lng},${lat},0</coordinates>
+        </Point>`;
+      }
+    }
+
+    if (geometryXml) {
+      placemarks.push(`    <Placemark id="${p.id}">
+      <name>${escapeXml(name)}</name>
+      <description>${desc}</description>${geometryXml}
+    </Placemark>`);
+    }
+  }
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Geodatabase Persil Pertanahan Dairi</name>
+    <description>Arsip Resmi Spasial Bidang Tanah Kantah Kab. Dairi</description>
+${placemarks.join('\n')}
+  </Document>
+</kml>`;
+}
+
+/**
+ * Generates GPX 1.1 containing all parcels (waypoints & tracks)
+ */
+export function generateGpxText(parcels: ParcelData[]): string {
+  const wpts: string[] = [];
+  const trks: string[] = [];
+  const now = new Date().toISOString();
+
+  for (const p of parcels) {
+    const label = `${p.nib} - ${p.owner_name || 'Tanpa Nama'}`;
+    const desc = `Pemilik: ${p.owner_name || '-'}, Desa: ${p.village || '-'}, Program: ${p.program_type || 'Reguler'}, Luas: ${p.legal_area_m2} m2`;
+
+    // 1. Waypoint (Titik GPS atau Centroid)
+    const lat = p.gps_lat ?? p.centroid_lat;
+    const lng = p.gps_lng ?? p.centroid_lng;
+    if (lat !== null && lat !== undefined && lng !== null && lng !== undefined) {
+      wpts.push(`  <wpt lat="${lat.toFixed(7)}" lon="${lng.toFixed(7)}">
+    <name>${escapeXml(label)}</name>
+    <desc>${escapeXml(desc)}</desc>
+    <type>${escapeXml(p.program_type || 'Reguler')}</type>
+  </wpt>`);
+    }
+
+    // 2. Track Batas Poligon
+    if (p.geojson) {
+      try {
+        const geom = typeof p.geojson === 'string' ? JSON.parse(p.geojson) : p.geojson;
+        if (geom && geom.type === 'Polygon' && Array.isArray(geom.coordinates)) {
+          const ring = geom.coordinates[0];
+          if (Array.isArray(ring) && ring.length >= 3) {
+            const trkpts = ring
+              .map((pt: [number, number] | number[]) => `      <trkpt lat="${pt[1]}" lon="${pt[0]}"/>`)
+              .join('\n');
+            trks.push(`  <trk>
+    <name>${escapeXml(label)}</name>
+    <desc>${escapeXml(desc)}</desc>
+    <trkseg>
+${trkpts}
+    </trkseg>
+  </trk>`);
+          }
+        }
+      } catch (err) {
+        console.warn(`[generateGpxText] Gagal parse batas NIB ${p.nib}:`, err);
+      }
+    }
+  }
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="GeoTanah Dairi" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Geodatabase Pertanahan Dairi</name>
+    <desc>Ekspor GPX seluruh persil sensus dan delineasi</desc>
+    <time>${now}</time>
+  </metadata>
+${wpts.join('\n')}
+${trks.join('\n')}
+</gpx>`;
 }
 
 /**
@@ -399,7 +551,7 @@ export interface ExportGeodatabaseResult {
 }
 
 /**
- * Main export geodatabase function handling Step 1 through Step 5.
+ * Main export geodatabase function handling Step 1 through Step 6.
  */
 export async function executeExportGeodatabase(
   options: ExportGeodatabaseOptions
@@ -432,60 +584,92 @@ export async function executeExportGeodatabase(
     }).format(now) + ' WIB';
 
   const zipContents: Zippable = {};
-  const photoMap = new Map<string, string>(); // parcel.id -> photo relative path
+  const photoMap = new Map<string, string>(); // parcel.id -> photo relative path in ZIP
   const photoBufferMap = new Map<string, ArrayBuffer>();
   const missingPhotos: PhotoErrorLog[] = [];
 
-  // STEP 3 — Download photos if includePhotos is true
-  if (includePhotos) {
-    const parcelsWithPhoto = parcels.filter((p) => !!p.photo_path);
-    const totalPhotos = parcelsWithPhoto.length;
+  // Helper sanitasi nama folder
+  const sanitize = (str: string) =>
+    str
+      .trim()
+      .replace(/[\/\\?%*:|"<>]/g, '_')
+      .replace(/\s+/g, '_')
+      .replace(/_+/g, '_');
 
-    if (totalPhotos > 0) {
-      let completedPhotos = 0;
-      onProgress?.(`Memulai pengunduhan foto (0/${totalPhotos})...`, 30);
-
-      // Pre-assign photo names to map
-      for (const p of parcelsWithPhoto) {
-        const photoFileName = getPhotoZipFileName(p.nib, p.surveyed_at);
-        photoMap.set(p.id, `photos/${photoFileName}`);
-      }
-
-      await asyncPool(3, parcelsWithPhoto, async (p) => {
-        const photoRelPath = photoMap.get(p.id)!;
-        try {
-          const { data: urlData } = supabase.storage
-            .from('parcel-photos')
-            .getPublicUrl(p.photo_path!, {
-              transform: {
-                width: 800,
-                quality: 55,
-              },
-            });
-
-          const buffer = await fetchWithRetry(urlData.publicUrl, 2);
-          photoBufferMap.set(photoRelPath, buffer);
-        } catch (err) {
-          const errMsg = err instanceof Error ? err.message : String(err);
-          console.warn(`[ExportGeodatabase] Gagal mengunduh foto NIB ${p.nib}:`, errMsg);
-          missingPhotos.push({
-            nib: p.nib,
-            reason: errMsg,
-          });
-        } finally {
-          completedPhotos++;
-          const photoPercent = 30 + Math.round((completedPhotos / totalPhotos) * 50);
-          onProgress?.(
-            `Mengunduh foto lapangan (${completedPhotos}/${totalPhotos})...`,
-            photoPercent
-          );
-        }
-      });
-    }
+  // STEP 3 — Siapkan dan unduh foto jika includePhotos bernilai true
+  interface PhotoJob {
+    parcelId: string;
+    nib: string;
+    ownerName: string;
+    storagePath: string;
+    zipRelativePath: string;
   }
 
-  // STEP 4 — Generate all text content
-  onProgress?.('Menyusun struktur berkas GeoJSON dan CSV...', 82);
+  const photoJobs: PhotoJob[] = [];
+
+  for (const p of parcels) {
+    if (!p.photo_path) continue;
+    const paths = parsePhotoPaths(p.photo_path);
+    if (paths.length === 0) continue;
+
+    const ownerStr = sanitize(p.owner_name || 'Tanpa_Nama');
+    const nibStr = sanitize(p.nib || 'Tanpa_NIB');
+    const parcelFolder = `${ownerStr}_${nibStr}`;
+
+    paths.forEach((storagePath, idx) => {
+      // Ambil nama file asli
+      let fileName = storagePath.split('/').pop() || `photo_${idx + 1}.jpg`;
+      fileName = fileName.replace(/[\/\\?%*:|"<>]/g, '_');
+      const zipRelativePath = `photos/${parcelFolder}/${fileName}`;
+      photoJobs.push({
+        parcelId: p.id,
+        nib: p.nib,
+        ownerName: p.owner_name,
+        storagePath,
+        zipRelativePath,
+      });
+    });
+  }
+
+  // Petakan ke photoMap untuk dicantumkan di CSV
+  for (const job of photoJobs) {
+    const existing = photoMap.get(job.parcelId);
+    photoMap.set(job.parcelId, existing ? `${existing}; ${job.zipRelativePath}` : job.zipRelativePath);
+  }
+
+  if (includePhotos && photoJobs.length > 0) {
+    let completedPhotos = 0;
+    const totalJobs = photoJobs.length;
+    onProgress?.(`Memulai pengunduhan foto (0/${totalJobs})...`, 30);
+
+    await asyncPool(4, photoJobs, async (job) => {
+      try {
+        const { data: urlData } = supabase.storage
+          .from('parcel-photos')
+          .getPublicUrl(job.storagePath);
+
+        const buffer = await fetchWithRetry(urlData.publicUrl, 2);
+        photoBufferMap.set(job.zipRelativePath, buffer);
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.warn(`[ExportGeodatabase] Gagal mengunduh foto NIB ${job.nib} (${job.storagePath}):`, errMsg);
+        missingPhotos.push({
+          nib: job.nib,
+          reason: `${job.storagePath}: ${errMsg}`,
+        });
+      } finally {
+        completedPhotos++;
+        const photoPercent = 30 + Math.round((completedPhotos / totalJobs) * 50);
+        onProgress?.(
+          `Mengunduh foto lapangan (${completedPhotos}/${totalJobs})...`,
+          photoPercent
+        );
+      }
+    });
+  }
+
+  // STEP 4 — Generate all text content (GeoJSON, KML, GPX, CSV, README)
+  onProgress?.('Menyusun berkas GeoJSON, KML, GPX, dan CSV...', 82);
 
   const readmeText = generateReadmeText({
     wibDateStr,
@@ -497,17 +681,21 @@ export async function executeExportGeodatabase(
   });
 
   const geojsonText = generateGeoJsonText(parcels);
+  const kmlText = generateKmlText(parcels);
+  const gpxText = generateGpxText(parcels);
   const csvWithBom = generateParcelsAttributesCsv(parcels, photoMap);
   const rekapDesaCsv = generateRekapDesaCsv(parcels);
   const rekapProgramCsv = generateRekapProgramCsv(parcels);
 
   zipContents['README.txt'] = strToU8(readmeText);
   zipContents['geojson/all_parcels.geojson'] = strToU8(geojsonText);
+  zipContents['kml/all_parcels.kml'] = strToU8(kmlText);
+  zipContents['gpx/all_parcels.gpx'] = strToU8(gpxText);
   zipContents['csv/parcels_attributes.csv'] = strToU8(csvWithBom);
   zipContents['csv/rekap_per_desa.csv'] = strToU8(rekapDesaCsv);
   zipContents['csv/rekap_per_program.csv'] = strToU8(rekapProgramCsv);
 
-  // Add photos to zipContents
+  // Add photos to zipContents under photos/[Pemilik]_[NIB]/...
   photoBufferMap.forEach((buffer, path) => {
     zipContents[path] = new Uint8Array(buffer);
   });

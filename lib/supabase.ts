@@ -50,16 +50,34 @@ export interface ParcelData {
 
 /**
  * Parsing path foto survei dari database.
- * Mendukung format single-path, comma-separated ('path1,path2'), dan JSON array string.
+ * Mendukung format single-path, comma-separated ('path1,path2'), dan JSON array string ('["path1","path2"]').
  */
-export function parsePhotoPaths(raw?: string | null): string[] {
+export function parsePhotoPaths(raw?: unknown): string[] {
   if (!raw) return [];
+  if (Array.isArray(raw)) {
+    return raw.map((item) => String(item).trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+  }
+  if (typeof raw !== 'string') return [];
   const trimmed = raw.trim();
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+  if (!trimmed) return [];
+
+  // Jika berupa format JSON string array
+  if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
     try {
       const parsed = JSON.parse(trimmed);
-      if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => String(item).trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+      }
     } catch {}
   }
-  return trimmed.split(',').map((p) => p.trim()).filter(Boolean);
+
+  // Jika dipisah dengan koma (legacy comma-separated format)
+  if (trimmed.includes(',')) {
+    return trimmed
+      .split(',')
+      .map((p) => p.trim().replace(/^["']|["']$/g, ''))
+      .filter(Boolean);
+  }
+
+  return [trimmed.replace(/^["']|["']$/g, '')];
 }

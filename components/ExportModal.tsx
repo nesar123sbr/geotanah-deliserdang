@@ -69,6 +69,14 @@ export default function ExportModal({
               <span>/geojson/all_parcels.geojson</span>
             </div>
             <div className="flex items-center gap-2">
+              <Map className="h-3.5 w-3.5 text-teal-400 shrink-0" />
+              <span>/kml/all_parcels.kml (Google Earth)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Map className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+              <span>/gpx/all_parcels.gpx (GPS / Avenza)</span>
+            </div>
+            <div className="flex items-center gap-2">
               <FileSpreadsheet className="h-3.5 w-3.5 text-blue-400 shrink-0" />
               <span>/csv/parcels_attributes.csv</span>
             </div>

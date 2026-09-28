@@ -13,6 +13,50 @@ import {
 import ExportModal from '@/components/ExportModal';
 import AuthModal from '@/components/AuthModal';
 import { executeExportGeodatabase } from '@/lib/exportGeodatabase';
+import { toast } from 'sonner';
+
+/**
+ * Ekstraksi pesan error secara aman dan komprehensif dari PostgrestError atau Error standar
+ * Mencegah munculnya popup '[object Object]'.
+ */
+function extractErrorMessage(err: unknown): string {
+  if (!err) return 'Terjadi kesalahan tidak dikenal.';
+  if (typeof err === 'object') {
+    const obj = err as Record<string, unknown>;
+    const msg = typeof obj.message === 'string' ? obj.message : '';
+    const details = typeof obj.details === 'string' && obj.details ? ` (${obj.details})` : '';
+    const hint = typeof obj.hint === 'string' && obj.hint ? ` [Petunjuk: ${obj.hint}]` : '';
+    if (msg) return `${msg}${details}${hint}`;
+    const desc = typeof obj.error_description === 'string' ? obj.error_description : '';
+    if (desc) return desc;
+  }
+  return err instanceof Error ? err.message : String(err);
+}
+
+/**
+ * Pemindaian rekursif seluruh berkas di dalam folder Supabase Storage
+ */
+async function listAllStorageFilesRecursively(bucket: string, prefix: string): Promise<string[]> {
+  const collected: string[] = [];
+  async function scanDir(dir: string) {
+    const { data, error } = await supabase.storage.from(bucket).list(dir, {
+      limit: 100,
+      offset: 0,
+    });
+    if (error || !data) return;
+    for (const item of data) {
+      const itemPath = dir ? `${dir}/${item.name}` : item.name;
+      // Di Supabase Storage, folder ditandai dengan id === null atau tanpa metadata
+      if (!item.id && !item.metadata) {
+        await scanDir(itemPath);
+      } else {
+        collected.push(itemPath);
+      }
+    }
+  }
+  await scanDir(prefix);
+  return collected;
+}
 
 const ParcelMap = dynamic(() => import('@/components/ParcelMap'), {
   ssr: false,
@@ -49,6 +93,12 @@ export default function Dashboard() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgressText, setExportProgressText] = useState('');
   const [exportProgressPercent, setExportProgressPercent] = useState(0);
+  const [activePhotoIdx, setActivePhotoIdx] = useState(0);
+
+  // Reset indeks foto aktif ketika persil yang dipilih berganti
+  useEffect(() => {
+    setActivePhotoIdx(0);
+  }, [selectedParcel?.id]);
 
   // Jeda pencarian agar performa web tetap cepat
   useEffect(() => {
@@ -289,62 +339,112 @@ export default function Dashboard() {
     if (!confirmed) return;
 
     setIsDeleting(true);
+    const deleteToastId = toast.loading(`Menghapus data NIB ${parcel.nib} dan membersihkan storage...`);
+
     try {
-      // 1. Ekstrak nama folder storage dari owner_name & nib
-      const sanitize = (str: string) => str.trim().replace(/[\/\\?%*:|"<>]/g, '_').replace(/\s+/g, '_').replace(/_+/g, '_');
-      const folderName = `${sanitize(parcel.owner_name)}_${sanitize(parcel.nib)}`;
+      const sanitize = (str: string) =>
+        str
+          .trim()
+          .replace(/[\/\\?%*:|"<>]/g, '_')
+          .replace(/\s+/g, '_')
+          .replace(/_+/g, '_');
 
-      // 2. Lacak seluruh berkas di dalam folder storage tersebut
-      const { data: fileList, error: listError } = await supabase.storage
-        .from('parcel-photos')
-        .list(folderName);
+      const cleanOwner = sanitize(parcel.owner_name || 'Tanpa_Nama');
+      const cleanNib = sanitize(parcel.nib || 'Tanpa_NIB');
+      const baseFolderName = `${cleanOwner}_${cleanNib}`;
 
-      if (listError) {
-        console.warn('[handleDeleteParcel] List storage warning:', listError);
-      }
+      // Kumpulkan kandidat folder yang relevan dengan persil ini
+      const candidateFolders = new Set<string>();
+      candidateFolders.add(baseFolderName);
 
-      const filesToRemove: string[] = [];
-      if (fileList && fileList.length > 0) {
-        fileList.forEach((file) => {
-          filesToRemove.push(`${folderName}/${file.name}`);
-        });
-      }
-
-      // Masukkan juga path spesifik yang tercatat di kolom photo_path (termasuk comma-separated atau legacy)
+      // Ambil folder dari path foto yang tersimpan
       if (parcel.photo_path) {
-        const legacyPaths = parsePhotoPaths(parcel.photo_path);
-        legacyPaths.forEach((lp) => {
-          if (!filesToRemove.includes(lp)) filesToRemove.push(lp);
+        const storedPhotoPaths = parsePhotoPaths(parcel.photo_path);
+        storedPhotoPaths.forEach((p) => {
+          if (p.includes('/')) {
+            const folderPart = p.substring(0, p.lastIndexOf('/'));
+            if (folderPart) candidateFolders.add(folderPart);
+          }
         });
       }
 
-      // 3. Hapus bersih seluruh berkas dari bucket Supabase Storage
-      if (filesToRemove.length > 0) {
-        const { error: storageDelError } = await supabase.storage
-          .from('parcel-photos')
-          .remove(filesToRemove);
-        if (storageDelError) {
-          console.warn('Gagal menghapus beberapa berkas storage:', storageDelError);
+      // Periksa juga folder root untuk mencocokkan pola [Pemilik]_[NIB]*
+      try {
+        const { data: rootList } = await supabase.storage.from('parcel-photos').list('', { limit: 100 });
+        if (rootList && rootList.length > 0) {
+          rootList.forEach((item) => {
+            if (!item.id && !item.metadata) {
+              if (item.name.startsWith(baseFolderName) || item.name.includes(cleanNib)) {
+                candidateFolders.add(item.name);
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('[handleDeleteParcel] List root warning:', err);
+      }
+
+      // Pindai seluruh berkas secara rekursif dari seluruh kandidat folder
+      const filesToRemoveSet = new Set<string>();
+
+      for (const folder of candidateFolders) {
+        try {
+          const files = await listAllStorageFilesRecursively('parcel-photos', folder);
+          files.forEach((f) => filesToRemoveSet.add(f));
+          // Pastikan file detail_lokasi.txt dimasukkan jika ada
+          filesToRemoveSet.add(`${folder}/detail_lokasi.txt`);
+        } catch (err) {
+          console.warn(`[handleDeleteParcel] Gagal list berkas di folder ${folder}:`, err);
         }
       }
 
-      // 4. Hapus baris data di tabel parcels
+      // Masukkan juga path spesifik yang tercatat di kolom photo_path
+      if (parcel.photo_path) {
+        const directPaths = parsePhotoPaths(parcel.photo_path);
+        directPaths.forEach((dp) => filesToRemoveSet.add(dp));
+      }
+
+      const filesToRemove = Array.from(filesToRemoveSet);
+
+      // 1. Hapus bersih seluruh berkas foto dari bucket Supabase Storage secara bertahap
+      if (filesToRemove.length > 0) {
+        for (let i = 0; i < filesToRemove.length; i += 50) {
+          const chunk = filesToRemove.slice(i, i + 50);
+          const { error: storageDelError } = await supabase.storage
+            .from('parcel-photos')
+            .remove(chunk);
+          if (storageDelError) {
+            console.warn('[handleDeleteParcel] Sebagian berkas storage gagal dihapus:', storageDelError);
+          }
+        }
+      }
+
+      // 2. Hapus baris data di tabel parcels
       const { error: dbError } = await supabase
         .from('parcels')
         .delete()
         .eq('id', parcel.id);
-      if (dbError) throw dbError;
 
-      // 5. Perbarui state UI lokal
+      if (dbError) {
+        throw new Error(
+          `Gagal menghapus baris database (${dbError.code || 'DB_ERROR'}): ${dbError.message || dbError.details || JSON.stringify(dbError)}`
+        );
+      }
+
+      // 3. Perbarui state UI lokal
       setParcels((prev) => prev.filter((p) => p.id !== parcel.id));
       if (selectedParcel?.id === parcel.id) {
         setSelectedParcel(null);
       }
 
-      window.alert(`Pembersihan Berhasil: NIB ${parcel.nib} dan ${filesToRemove.length} berkas di Cloud Storage berhasil dihapus permanen.`);
+      const successMsg = `Pembersihan Berhasil: NIB ${parcel.nib} dan ${filesToRemove.length} berkas foto di Cloud Storage berhasil dihapus permanen.`;
+      toast.success(successMsg, { id: deleteToastId, duration: 5000 });
+      window.alert(successMsg);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      window.alert(`Gagal memproses penghapusan: ${msg}`);
+      const errorMsg = extractErrorMessage(err);
+      console.error('[handleDeleteParcel] Error:', err);
+      toast.error(`Gagal menghapus persil: ${errorMsg}`, { id: deleteToastId });
+      window.alert(`Gagal memproses penghapusan:\n${errorMsg}`);
     } finally {
       setIsDeleting(false);
     }
@@ -842,45 +942,99 @@ export default function Dashboard() {
                     )}
                   </div>
 
-                  {selectedParcel.photo_path ? (
-                    <div className="space-y-1.5">
-                      <a
-                        href={supabase.storage.from('parcel-photos').getPublicUrl(selectedParcel.photo_path).data.publicUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="group relative block overflow-hidden rounded-xl border border-slate-200 bg-slate-100 aspect-video w-full shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-                        title="Klik untuk membuka foto resolusi penuh di tab baru"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={
-                            supabase.storage.from('parcel-photos').getPublicUrl(selectedParcel.photo_path, {
-                              transform: {
-                                width: 400,
-                                height: 300,
-                                resize: 'cover',
-                                quality: 60,
-                              },
-                            }).data.publicUrl
-                          }
-                          alt={`Foto lapangan NIB ${selectedParcel.nib}`}
-                          loading="lazy"
-                          decoding="async"
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-semibold gap-1.5 backdrop-blur-[1px]">
-                          <span>Buka Resolusi Penuh</span>
-                          <ExternalLink className="h-3.5 w-3.5" />
+                  {(() => {
+                    const photoPaths = parsePhotoPaths(selectedParcel.photo_path);
+                    if (photoPaths.length === 0) {
+                      return (
+                        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white p-4 text-center">
+                          <Camera className="h-5 w-5 text-slate-400 mb-1" />
+                          <span className="text-[11px] text-slate-600 font-medium">Belum ada foto lapangan</span>
+                          <span className="text-[9px] text-slate-400 mt-0.5">Dapat disurvei melalui Mode Sensus</span>
                         </div>
-                      </a>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white p-4 text-center">
-                      <Camera className="h-5 w-5 text-slate-400 mb-1" />
-                      <span className="text-[11px] text-slate-600 font-medium">Belum ada foto lapangan</span>
-                      <span className="text-[9px] text-slate-400 mt-0.5">Dapat disurvei melalui Mode Sensus</span>
-                    </div>
-                  )}
+                      );
+                    }
+
+                    const safeIdx = Math.min(activePhotoIdx, photoPaths.length - 1);
+                    const activePath = photoPaths[safeIdx] || photoPaths[0];
+                    const fullUrl = supabase.storage.from('parcel-photos').getPublicUrl(activePath).data.publicUrl;
+                    const thumbUrl = supabase.storage.from('parcel-photos').getPublicUrl(activePath, {
+                      transform: {
+                        width: 600,
+                        height: 450,
+                        resize: 'cover',
+                        quality: 65,
+                      },
+                    }).data.publicUrl;
+
+                    return (
+                      <div className="space-y-2">
+                        {/* Pratinjau Utama Foto Aktif */}
+                        <div className="relative">
+                          <a
+                            href={fullUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group relative block overflow-hidden rounded-xl border border-slate-200 bg-slate-100 aspect-video w-full shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                            title="Klik untuk membuka foto resolusi penuh di tab baru"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={thumbUrl}
+                              alt={`Foto lapangan NIB ${selectedParcel.nib} (#${safeIdx + 1})`}
+                              loading="lazy"
+                              decoding="async"
+                              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                            <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-semibold gap-1.5 backdrop-blur-[1px]">
+                              <span>Buka Resolusi Penuh</span>
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </div>
+                            {photoPaths.length > 1 && (
+                              <span className="absolute top-2 right-2 bg-slate-950/75 backdrop-blur-sm text-white text-[10px] font-mono px-2 py-0.5 rounded-full border border-white/20 shadow-xs pointer-events-none">
+                                {safeIdx + 1} / {photoPaths.length}
+                              </span>
+                            )}
+                          </a>
+                        </div>
+
+                        {/* Galeri Thumbnail jika memiliki lebih dari 1 foto */}
+                        {photoPaths.length > 1 && (
+                          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5">
+                            {photoPaths.map((pPath, idx) => {
+                              const miniThumb = supabase.storage.from('parcel-photos').getPublicUrl(pPath, {
+                                transform: { width: 120, height: 120, resize: 'cover', quality: 50 },
+                              }).data.publicUrl;
+                              const isSelected = idx === safeIdx;
+
+                              return (
+                                <button
+                                  key={pPath + idx}
+                                  type="button"
+                                  onClick={() => setActivePhotoIdx(idx)}
+                                  className={`relative h-12 w-12 shrink-0 rounded-lg overflow-hidden border transition-all cursor-pointer ${
+                                    isSelected
+                                      ? 'ring-2 ring-emerald-500 border-emerald-500 scale-105'
+                                      : 'border-slate-200 opacity-70 hover:opacity-100 hover:border-slate-400'
+                                  }`}
+                                  title={`Pilih foto #${idx + 1}`}
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={miniThumb}
+                                    alt={`Thumbnail ${idx + 1}`}
+                                    className="h-full w-full object-cover"
+                                  />
+                                  <span className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[8px] font-mono text-center leading-tight">
+                                    #{idx + 1}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Metadata GPS / Centroid jika tersedia */}
                   {selectedParcel.gps_lat !== null && selectedParcel.gps_lat !== undefined && selectedParcel.gps_lng !== null && selectedParcel.gps_lng !== undefined && (
