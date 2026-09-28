@@ -518,20 +518,16 @@ export default function SurveyDrawMap({
             aria-hidden="true"
           >
             <div className="relative flex items-center justify-center">
-              {/* Lingkaran Luar Bidikan */}
               <div className="w-8 h-8 rounded-full border-2 border-red-500 shadow-sm bg-red-500/10 flex items-center justify-center">
-                {/* Titik Inti Pusat */}
                 <div className="w-1.5 h-1.5 rounded-full bg-red-600 shadow-sm" />
               </div>
-              {/* Garis Horizontal Crosshair */}
               <div className="absolute w-12 h-0.5 bg-red-500 shadow-xs pointer-events-none" />
-              {/* Garis Vertikal Crosshair */}
               <div className="absolute h-12 w-0.5 bg-red-500 shadow-xs pointer-events-none" />
             </div>
           </div>
         )}
 
-        {/* Tombol Pusatkan ke Lokasi Surveyor (Thumb Zone: absolute bottom-4 right-2 z-[1000]) */}
+        {/* Tombol Pusatkan ke Lokasi Surveyor */}
         <button
           type="button"
           onClick={handleCenterMyLocation}
@@ -546,34 +542,47 @@ export default function SurveyDrawMap({
           )}
           <span>{isLocatingLive ? 'Mencari...' : 'Pusatkan Lokasi'}</span>
         </button>
-      </div>
 
-      {/* Bar Tombol Aksi Cepat Digitasi (Thumb Zone: Vertikal full-width di HP, Berdampingan di PC) */}
-      {!isLocked && !disabled && (
-        <div className="p-2 sm:p-2.5 bg-white border-t border-slate-200/80">
-          <div className="flex flex-col sm:flex-row w-full gap-2 mt-0.5">
+        {/* Floating Action Dock — Glassmorphism macOS-style (inside map viewport) */}
+        {!isLocked && !disabled && (
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[1000] bg-white/75 backdrop-blur-md rounded-full shadow-2xl border border-white/50 px-4 py-2 flex items-center gap-3">
             <button
               type="button"
               onClick={handleRecordCrosshairCenter}
-              className="w-full min-h-12 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all duration-200 hover:opacity-90 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              title="Rekam koordinat titik tengah bidikan (Crosshair) ke dalam poligon batas"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-sm transition-all duration-200 active:scale-[0.97] cursor-pointer"
+              title="Rekam koordinat titik tengah bidikan (Crosshair)"
             >
               <Crosshair className="h-4 w-4 shrink-0" />
-              <span>🎯 Rekam Titik Bidikan</span>
+              <span className="hidden sm:inline">Rekam Bidikan</span>
+              <span className="sm:hidden">🎯</span>
             </button>
 
             <button
               type="button"
               onClick={handleRecordGpsLocation}
-              className="w-full min-h-12 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all duration-200 hover:opacity-90 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              title="Rekam koordinat GPS posisi surveyor saat ini ke dalam poligon batas"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-sm transition-all duration-200 active:scale-[0.97] cursor-pointer"
+              title="Rekam koordinat GPS posisi surveyor saat ini"
             >
               <MapPin className="h-4 w-4 shrink-0" />
-              <span>📍 Rekam Titik GPS Saya</span>
+              <span className="hidden sm:inline">Rekam GPS</span>
+              <span className="sm:hidden">📍</span>
             </button>
+
+            {points.length > 0 && (
+              <button
+                type="button"
+                onClick={handleUndo}
+                disabled={disabled}
+                className="inline-flex items-center gap-1 px-3 py-2.5 rounded-full border border-slate-300/80 bg-white/80 hover:bg-white text-slate-700 font-medium text-xs shadow-sm transition-all duration-200 active:scale-[0.97] disabled:opacity-50 cursor-pointer"
+                title="Hapus titik terakhir"
+              >
+                <Undo className="h-3.5 w-3.5 text-slate-600" />
+                <span className="hidden sm:inline">Batal</span>
+              </button>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Bottom Action Controls Bar */}
       <div className="p-2.5 sm:p-3 bg-slate-50 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm">
