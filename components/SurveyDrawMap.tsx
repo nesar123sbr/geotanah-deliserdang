@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, Marker, Polyline, Polygon, useMap, useMapEvent
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { RotateCcw, Check, Undo, LocateFixed, Edit3, CheckCircle2, LoaderCircle, Crosshair, MapPin } from 'lucide-react';
+import { toast } from 'sonner';
 
 export interface SurveyPolygonResult {
   geojson: string | null;
@@ -19,6 +20,8 @@ export interface SurveyDrawMapProps {
   disabled?: boolean;
   importedPoints?: [number, number][] | null;
   resetKey?: number;
+  className?: string;
+  mapHeightClassName?: string;
 }
 
 /**
@@ -181,6 +184,8 @@ export default function SurveyDrawMap({
   disabled = false,
   importedPoints = null,
   resetKey = 0,
+  className = '',
+  mapHeightClassName = 'h-[50vh] min-h-[350px] sm:h-[420px] md:h-[480px]',
 }: SurveyDrawMapProps) {
   const [mounted, setMounted] = useState(false);
   const [points, setPoints] = useState<[number, number][]>([]);
@@ -259,6 +264,7 @@ export default function SurveyDrawMap({
         points: importedPoints,
         centroid,
       });
+      toast.success(`Poligon GPS berhasil dimuat (${importedPoints.length} patok).`);
     }
   }, [importedPoints, onPolygonChange]);
 
@@ -286,6 +292,7 @@ export default function SurveyDrawMap({
     const next: [number, number][] = [...points, [lat, lng]];
     setPoints(next);
     syncPolygonToParent(next);
+    toast.success(`Patok #${next.length} ditambahkan.`);
   }, [disabled, isLocked, points, syncPolygonToParent]);
 
   // Hapus semua titik (Ulangi)
@@ -293,6 +300,7 @@ export default function SurveyDrawMap({
     setPoints([]);
     setIsLocked(false);
     syncPolygonToParent([]);
+    toast.info('Digitasi patok telah dibersihkan.');
   }, [syncPolygonToParent]);
 
   // Hapus titik terakhir (Undo)
@@ -301,6 +309,7 @@ export default function SurveyDrawMap({
     const next = points.slice(0, -1);
     setPoints(next);
     syncPolygonToParent(next);
+    toast.info(`Patok terakhir dibatalkan (${next.length} tersisa).`);
   }, [isLocked, points, syncPolygonToParent]);
 
   // Kunci poligon (Selesai)
@@ -308,17 +317,20 @@ export default function SurveyDrawMap({
     if (points.length < 3) return;
     setIsLocked(true);
     syncPolygonToParent(points);
+    toast.success(`Poligon berhasil dikunci! Luas: ${formatAreaM2(calculateSphericalPolygonArea(points))}`);
   }, [points, syncPolygonToParent]);
 
   // Buka kembali kunci poligon (Edit Kembali)
   const handleUnlock = useCallback(() => {
     setIsLocked(false);
+    toast.info('Mode edit poligon diaktifkan kembali.');
   }, []);
 
   // Pusatkan peta ke lokasi GPS surveyor saat ini
   const handleCenterMyLocation = useCallback(() => {
     if (activePosition) {
       setFlyTarget([activePosition.lat, activePosition.lng]);
+      toast.success(`Peta dipusatkan ke koordinat (${activePosition.lat.toFixed(5)}, ${activePosition.lng.toFixed(5)})`);
       return;
     }
 
@@ -331,16 +343,17 @@ export default function SurveyDrawMap({
           if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
             setLiveLocation({ lat: latitude, lng: longitude, accuracy });
             setFlyTarget([latitude, longitude]);
+            toast.success(`Lokasi GPS terdeteksi (Akurasi: ±${accuracy.toFixed(1)}m)`);
           }
         },
         (err) => {
           setIsLocatingLive(false);
-          window.alert(`Gagal mengambil lokasi GPS: ${err.message}. Pastikan izin lokasi aktif di peramban.`);
+          toast.error(`Gagal mengambil lokasi GPS: ${err.message}. Pastikan izin lokasi aktif.`);
         },
         { enableHighAccuracy: true, timeout: 10000 }
       );
     } else {
-      window.alert('Fitur geolokasi tidak didukung oleh peramban ini.');
+      toast.error('Fitur geolokasi tidak didukung oleh peramban ini.');
     }
   }, [activePosition]);
 
@@ -359,6 +372,7 @@ export default function SurveyDrawMap({
     const next: [number, number][] = [...points, [lat, lng]];
     setPoints(next);
     syncPolygonToParent(next);
+    toast.success(`🎯 Patok #${next.length} direkam dari bidikan tengah.`);
   }, [disabled, isLocked, mapInstance, points, syncPolygonToParent]);
 
   // 2. Rekam koordinat GPS posisi surveyor saat ini (Snap to GPS)
@@ -366,7 +380,7 @@ export default function SurveyDrawMap({
     if (disabled || isLocked) return;
 
     if (!activePosition || !Number.isFinite(activePosition.lat) || !Number.isFinite(activePosition.lng)) {
-      window.alert('Titik GPS belum terdeteksi. Silakan tunggu sinyal GPS atau klik "Pusatkan ke Lokasi Saya" terlebih dahulu.');
+      toast.error('Titik GPS belum terdeteksi. Silakan tunggu sinyal GPS atau klik "Pusatkan Lokasi" terlebih dahulu.');
       return;
     }
 
@@ -375,11 +389,12 @@ export default function SurveyDrawMap({
     const next: [number, number][] = [...points, [lat, lng]];
     setPoints(next);
     syncPolygonToParent(next);
+    toast.success(`📍 Patok #${next.length} direkam dari posisi GPS (Akurasi: ±${activePosition.accuracy?.toFixed(1) || '?'}m).`);
   }, [disabled, isLocked, activePosition, points, syncPolygonToParent]);
 
   if (!mounted) {
     return (
-      <div className="h-[50vh] min-h-[350px] sm:h-[420px] md:h-[480px] w-full rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-xs text-slate-500 font-mono">
+      <div className={`${mapHeightClassName} w-full rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-xs text-slate-500 font-mono`}>
         Menyiapkan peta kerja delineasi...
       </div>
     );
@@ -390,7 +405,7 @@ export default function SurveyDrawMap({
     : [2.7485, 98.3175]; // Sidikalang
 
   return (
-    <div className="relative w-full rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shadow-sm">
+    <div className={`relative w-full rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shadow-sm ${className}`}>
       <style>{`
         @keyframes blueDotPulse {
           0% { transform: scale(0.4); opacity: 0.9; }
@@ -422,7 +437,7 @@ export default function SurveyDrawMap({
       )}
 
       {/* Map Container */}
-      <div className="relative h-[50vh] min-h-[350px] sm:h-[420px] md:h-[480px] w-full">
+      <div className={`relative w-full ${mapHeightClassName}`}>
         <MapContainer
           center={initialCenter}
           zoom={17}
@@ -545,7 +560,7 @@ export default function SurveyDrawMap({
 
         {/* Floating Action Dock — Glassmorphism macOS-style (inside map viewport) */}
         {!isLocked && !disabled && (
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[1000] bg-white/75 backdrop-blur-md rounded-full shadow-2xl border border-white/50 px-4 py-2 flex items-center gap-3">
+          <div className="absolute bottom-20 sm:bottom-8 left-1/2 -translate-x-1/2 z-[1000] bg-white/75 backdrop-blur-md rounded-full shadow-2xl border border-white/50 px-4 py-2 flex items-center gap-3">
             <button
               type="button"
               onClick={handleRecordCrosshairCenter}
