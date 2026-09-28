@@ -1208,23 +1208,26 @@ export default function SurveyPage() {
         id="survey-photo-replace-input"
       />
 
-      {/* Peta Viewport Utama: Full-Screen di HP, Sebelah Kiri di Desktop */}
+      {/* ── Main Viewport: Full-Screen Map on Mobile, Split Screen on Desktop ── */}
       <div className="relative flex-1 h-full w-full overflow-hidden">
         {/* Floating Top Nav Bar */}
         <div className="absolute top-3 left-3 right-3 z-[1000] flex items-center justify-between gap-2 pointer-events-none">
+          {/* Back button */}
           <Link
             href="/"
-            className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/90 backdrop-blur-md px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-md transition-all duration-200 hover:bg-white hover:text-slate-900 active:scale-[0.97]"
+            className="pointer-events-auto inline-flex min-h-10 items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/95 backdrop-blur-md px-3.5 py-2 text-xs font-bold text-slate-700 shadow-md transition-all duration-150 hover:bg-white hover:text-slate-900 active:scale-[0.97]"
           >
             <ArrowLeft className="h-4 w-4" />
             <span className="hidden sm:inline">Kembali ke Peta</span>
           </Link>
 
-          <div className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-white/90 backdrop-blur-md border border-slate-200/80 px-3.5 py-1.5 text-xs shadow-md text-slate-700">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-semibold text-emerald-800">Mode Sensus</span>
+          {/* Mode Sensus Brand Badge */}
+          <div className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-slate-950/85 text-white backdrop-blur-md border border-white/15 px-3 sm:px-3.5 py-1.5 text-xs shadow-lg">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-bold tracking-tight">Mode Sensus</span>
+            <span className="hidden sm:inline text-slate-400 text-[10px] border-l border-white/20 pl-2 font-mono">Dairi</span>
             {currentUserEmail && (
-              <span className="hidden md:inline font-mono text-[11px] text-slate-500 border-l border-slate-200 pl-2 max-w-[140px] truncate">
+              <span className="hidden md:inline font-mono text-[10px] text-slate-300 border-l border-white/20 pl-2 max-w-[130px] truncate" title={currentUserEmail}>
                 {currentUserEmail}
               </span>
             )}
@@ -1235,12 +1238,12 @@ export default function SurveyPage() {
             <Button
               type="button"
               onClick={() => setIsMobileSheetOpen(true)}
-              className="rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-md text-xs font-semibold px-3.5 py-2 flex items-center gap-1.5 active:scale-[0.97]"
+              className="rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg text-xs font-bold px-3.5 py-2 min-h-10 flex items-center gap-1.5 active:scale-[0.97] cursor-pointer"
             >
               <FileText className="h-4 w-4" />
               <span>Isi Form</span>
               {photos.length > 0 && (
-                <span className="h-4 w-4 rounded-full bg-white text-emerald-700 text-[10px] font-bold flex items-center justify-center">
+                <span className="h-4 w-4 rounded-full bg-white text-emerald-800 text-[10px] font-black flex items-center justify-center">
                   {photos.length}
                 </span>
               )}
@@ -1264,22 +1267,29 @@ export default function SurveyPage() {
           <button
             type="button"
             onClick={() => setIsMobileSheetOpen(true)}
-            className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-2xl text-slate-800 transition-all duration-200 hover:bg-white active:scale-[0.98] cursor-pointer"
+            className="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-2xl text-slate-800 transition-all duration-150 active:scale-[0.98] cursor-pointer"
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="h-9 w-9 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0 shadow-xs">
+              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white shrink-0 shadow-sm">
                 <FileText className="h-4 w-4" />
               </div>
               <div className="text-left min-w-0">
                 <div className="text-xs font-bold text-slate-900 truncate">
                   {cleanNib ? `NIB: ${cleanNib}` : 'Formulir Data Bidang Tanah'}
                 </div>
-                <div className="text-[11px] text-slate-500 truncate">
-                  {photos.length > 0 ? `${photos.length}/${MAX_PHOTOS} Foto` : 'Belum ada foto'} · {gps ? 'GPS ✓' : 'Belum GPS'} · {surveyPolygon.points.length > 0 ? `${surveyPolygon.points.length} patok` : 'Belum ada patok'}
+                <div className="text-[11px] text-slate-500 truncate flex items-center gap-1.5 mt-0.5">
+                  <span className={`inline-block h-1.5 w-1.5 rounded-full ${photos.length > 0 ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                  <span>{photos.length > 0 ? `${photos.length}/${MAX_PHOTOS} Foto` : '0 Foto'}</span>
+                  <span>·</span>
+                  <span className={`inline-block h-1.5 w-1.5 rounded-full ${gps ? 'bg-blue-500' : 'bg-slate-300'}`} />
+                  <span>{gps ? 'GPS ✓' : 'No GPS'}</span>
+                  <span>·</span>
+                  <span className={`inline-block h-1.5 w-1.5 rounded-full ${surveyPolygon.points.length >= 3 ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                  <span>{surveyPolygon.points.length > 0 ? `${surveyPolygon.points.length} patok` : '0 patok'}</span>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-1 text-xs font-semibold text-emerald-700 shrink-0 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200/80">
+            <div className="flex items-center gap-1 text-xs font-bold text-emerald-800 shrink-0 bg-emerald-50 px-2.5 py-1.5 rounded-xl border border-emerald-200">
               <span>Buka Form</span>
               <ChevronUp className="h-4 w-4" />
             </div>
@@ -1292,7 +1302,7 @@ export default function SurveyPage() {
         <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
           <SheetContent
             side="bottom"
-            className="max-h-[88vh] overflow-y-auto rounded-t-3xl border-t border-slate-200 bg-white p-4 sm:p-6 shadow-2xl"
+            className="max-h-[88vh] overflow-y-auto rounded-t-3xl border-t border-slate-200 bg-white p-4 sm:p-6 shadow-2xl safe-bottom scrollbar-thin"
           >
             <SheetHeader className="pb-3 border-b border-slate-100 text-left">
               <SheetTitle className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -1304,7 +1314,7 @@ export default function SurveyPage() {
               </SheetDescription>
             </SheetHeader>
 
-            <div className="mt-3 pb-6">
+            <div className="mt-3 pb-8">
               {renderFormContent()}
             </div>
           </SheetContent>
@@ -1312,19 +1322,19 @@ export default function SurveyPage() {
       </div>
 
       {/* Desktop Sidebar Panel: Form permanen di sisi kanan layar PC */}
-      <aside className="hidden lg:flex lg:w-[440px] xl:w-[480px] h-full flex-col border-l border-slate-200 bg-slate-50 shadow-xl z-20 overflow-y-auto p-5 xl:p-6">
-        <div className="pb-3 mb-3 border-b border-slate-200">
+      <aside className="hidden lg:flex lg:w-[440px] xl:w-[480px] h-full flex-col border-l border-slate-200 bg-[oklch(0.97_0.005_240)] shadow-xl z-20 overflow-y-auto p-5 xl:p-6 scrollbar-thin">
+        <div className="pb-3 mb-4 border-b border-slate-200">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <FileText className="h-5 w-5 text-emerald-600" />
               <span>Formulir Survei Lapangan</span>
             </h2>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-200">
               Desktop View
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Isi data NIB, pemilik, koordinat, dan foto dokumentasi sembari mendigitasi batas tanah pada peta.
+          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+            Isi data NIB, pemilik, koordinat, dan foto dokumentasi sembari mendigitasi batas tanah pada peta kerja.
           </p>
         </div>
         {renderFormContent()}
@@ -1332,3 +1342,4 @@ export default function SurveyPage() {
     </main>
   );
 }
+

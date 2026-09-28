@@ -405,7 +405,7 @@ export default function SurveyDrawMap({
     : [2.7485, 98.3175]; // Sidikalang
 
   return (
-    <div className={`relative w-full rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shadow-sm ${className}`}>
+    <div className={`relative w-full h-full flex flex-col overflow-hidden bg-slate-950 ${className}`}>
       <style>{`
         @keyframes blueDotPulse {
           0% { transform: scale(0.4); opacity: 0.9; }
@@ -414,30 +414,39 @@ export default function SurveyDrawMap({
         }
       `}</style>
 
-      {/* Header Info Bar (Hanya tampil jika ada patok, tanpa hint putih pemakan layar) */}
+      {/* ── HUD Status Bar (Top Left, safe from top navigation) ──────── */}
       {points.length > 0 && (
-        <div className="absolute top-3 left-3 z-[1000] pointer-events-none">
-          <div className="pointer-events-auto inline-flex items-center gap-2 rounded-xl bg-white/95 backdrop-blur-md px-3 py-1.5 text-xs shadow-md border border-slate-200/80">
-            <span className={`h-2 w-2 rounded-full ${isLocked ? 'bg-emerald-500' : points.length >= 3 ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-pulse'}`} />
+        <div className="absolute top-14 sm:top-16 left-3 z-[1000] pointer-events-none">
+          <div className="pointer-events-auto inline-flex items-center gap-2 rounded-xl bg-white/95 backdrop-blur-md px-3 py-1.5 text-xs shadow-lg border border-slate-200/90 text-slate-800">
+            <span className={`h-2 w-2 rounded-full ${isLocked ? 'bg-emerald-600' : points.length >= 3 ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400 animate-pulse'}`} />
             {points.length < 3 ? (
               <span className="font-medium text-slate-700">
-                {points.length} patok (tambah {3 - points.length} patok lagi untuk poligon)
+                {points.length} patok <span className="text-slate-400 font-normal">(butuh {3 - points.length} lagi)</span>
               </span>
             ) : (
               <span className="font-semibold text-slate-800 flex items-center gap-1.5">
-                {isLocked ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 inline" />
-                ) : null}
-                <span>Luas: <span className="font-mono text-emerald-700">{formatAreaM2(areaM2)}</span></span>
-                <span className="text-[10px] text-slate-500 font-mono">({points.length} patok)</span>
+                {isLocked && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 inline" />}
+                <span>Luas: <span className="font-mono text-emerald-700 font-bold">{formatAreaM2(areaM2)}</span></span>
+                <span className="text-[10px] text-slate-400 font-mono">({points.length} patok)</span>
               </span>
+            )}
+            {isLocked && (
+              <button
+                type="button"
+                onClick={handleUnlock}
+                disabled={disabled}
+                className="ml-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer"
+                title="Buka kunci poligon untuk menambah/mengedit patok"
+              >
+                Edit
+              </button>
             )}
           </div>
         </div>
       )}
 
-      {/* Map Container */}
-      <div className={`relative w-full ${mapHeightClassName}`}>
+      {/* ── Map Container (fills available space) ────────────────────── */}
+      <div className={`relative w-full flex-1 min-h-0 ${mapHeightClassName}`}>
         <MapContainer
           center={initialCenter}
           zoom={17}
@@ -482,7 +491,7 @@ export default function SurveyDrawMap({
             </LayersControl.BaseLayer>
           </LayersControl>
 
-          {/* Marker Titik Biru Berdenyut Posisi Real-Time Surveyor (Google Maps Style) */}
+          {/* Marker Titik Biru Posisi Real-Time Surveyor */}
           {activePosition && (
             <Marker
               position={[activePosition.lat, activePosition.lng]}
@@ -492,7 +501,7 @@ export default function SurveyDrawMap({
             />
           )}
 
-          {/* Garis Polyline (saat hanya 2 titik) */}
+          {/* Garis Polyline (saat 2 titik) */}
           {points.length === 2 && (
             <Polyline
               positions={points}
@@ -514,7 +523,7 @@ export default function SurveyDrawMap({
             />
           )}
 
-          {/* Marker untuk tiap patok sudut poligon */}
+          {/* Marker tiap patok sudut poligon */}
           {points.map((pt, idx) => (
             <Marker
               key={`vertex-${idx}-${pt[0]}-${pt[1]}`}
@@ -526,108 +535,118 @@ export default function SurveyDrawMap({
           ))}
         </MapContainer>
 
-        {/* Crosshair Target (Bidikan Tengah Peta) */}
+        {/* ── Crosshair Target (Bidikan Tengah Peta) ────────────────── */}
         {!isLocked && !disabled && (
           <div
             className="absolute inset-0 flex items-center justify-center pointer-events-none z-[800]"
             aria-hidden="true"
           >
             <div className="relative flex items-center justify-center">
-              <div className="w-8 h-8 rounded-full border-2 border-red-500 shadow-sm bg-red-500/10 flex items-center justify-center">
-                <div className="w-1.5 h-1.5 rounded-full bg-red-600 shadow-sm" />
+              <div className="w-8 h-8 rounded-full border-2 border-rose-500 shadow-sm bg-rose-500/10 flex items-center justify-center">
+                <div className="w-1.5 h-1.5 rounded-full bg-rose-600 shadow-sm" />
               </div>
-              <div className="absolute w-12 h-0.5 bg-red-500 shadow-xs pointer-events-none" />
-              <div className="absolute h-12 w-0.5 bg-red-500 shadow-xs pointer-events-none" />
+              <div className="absolute w-12 h-0.5 bg-rose-500/80 shadow-xs pointer-events-none" />
+              <div className="absolute h-12 w-0.5 bg-rose-500/80 shadow-xs pointer-events-none" />
             </div>
           </div>
         )}
 
-        {/* Tombol Independen Melayang: Pusatkan ke Lokasi Surveyor (Selalu Terlihat & Bebas Halangan di HP/PC) */}
+        {/* ── FAB Pusatkan ke Lokasi Surveyor (Floating GPS Button) ── */}
         <button
           type="button"
           onClick={handleCenterMyLocation}
           disabled={isLocatingLive}
-          className="absolute bottom-28 sm:bottom-20 right-3 sm:right-4 z-[1000] inline-flex items-center gap-1.5 rounded-full bg-white/95 backdrop-blur-md px-3.5 py-2.5 text-xs font-semibold text-slate-800 hover:text-blue-600 hover:bg-white shadow-xl border border-slate-300 transition-all duration-200 hover:opacity-95 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          className="absolute bottom-28 sm:bottom-24 lg:bottom-16 right-3 sm:right-4 z-[1000] inline-flex items-center justify-center h-11 w-11 rounded-full bg-white/95 backdrop-blur-md text-slate-700 hover:text-blue-600 hover:bg-white shadow-xl border border-slate-200/90 transition-all duration-150 active:scale-[0.95] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           title="Pusatkan peta ke lokasi GPS Anda saat ini"
+          aria-label="Pusatkan ke lokasi saya"
         >
           {isLocatingLive ? (
-            <LoaderCircle className="h-4 w-4 animate-spin text-blue-600 shrink-0" />
+            <LoaderCircle className="h-5 w-5 animate-spin text-blue-600 shrink-0" />
           ) : (
-            <LocateFixed className={`h-4 w-4 shrink-0 ${activePosition ? 'text-blue-600' : 'text-slate-600'}`} />
+            <LocateFixed className={`h-5 w-5 shrink-0 ${activePosition ? 'text-blue-600' : 'text-slate-600'}`} />
           )}
-          <span>{isLocatingLive ? 'Mencari...' : 'Pusatkan Lokasi'}</span>
         </button>
 
-        {/* Floating Action Dock — Glassmorphism macOS-style (inside map viewport) */}
+        {/* ── Floating Action Dock (macOS Glassmorphism) ─────────────── */}
         {!isLocked && !disabled && (
-          <div className="absolute bottom-20 sm:bottom-8 left-1/2 -translate-x-1/2 z-[1000] bg-white/75 backdrop-blur-md rounded-full shadow-2xl border border-white/50 px-4 py-2 flex items-center gap-2 sm:gap-3">
+          <div className="absolute bottom-[80px] sm:bottom-6 left-1/2 -translate-x-1/2 z-[1000] floating-dock rounded-full px-2 sm:px-3 py-1.5 flex items-center gap-1.5 sm:gap-2 max-w-[94vw] shadow-2xl">
+            {/* Rekam Bidikan */}
             <button
               type="button"
               onClick={handleRecordCrosshairCenter}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-sm transition-all duration-200 active:scale-[0.97] cursor-pointer"
+              className="inline-flex min-h-10 items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition-all duration-150 active:scale-[0.96] cursor-pointer shrink-0"
               title="Rekam koordinat titik tengah bidikan (Crosshair)"
             >
               <Crosshair className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline">Rekam Bidikan</span>
-              <span className="sm:hidden">🎯</span>
+              <span className="hidden xs:inline">Rekam Bidikan</span>
+              <span className="xs:hidden">Bidikan</span>
             </button>
 
+            {/* Rekam GPS */}
             <button
               type="button"
               onClick={handleRecordGpsLocation}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-sm transition-all duration-200 active:scale-[0.97] cursor-pointer"
+              className="inline-flex min-h-10 items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-sm transition-all duration-150 active:scale-[0.96] cursor-pointer shrink-0"
               title="Rekam koordinat GPS posisi surveyor saat ini"
             >
               <MapPin className="h-4 w-4 shrink-0" />
-              <span className="hidden sm:inline">Rekam GPS</span>
-              <span className="sm:hidden">📍</span>
+              <span className="hidden xs:inline">Rekam GPS</span>
+              <span className="xs:hidden">GPS</span>
             </button>
 
-            <button
-              type="button"
-              onClick={handleCenterMyLocation}
-              disabled={isLocatingLive}
-              className="inline-flex items-center justify-center p-2.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-blue-600 font-semibold text-xs shadow-xs transition-all duration-200 active:scale-[0.97] cursor-pointer"
-              title="Pusatkan peta ke lokasi GPS Anda saat ini"
-            >
-              {isLocatingLive ? (
-                <LoaderCircle className="h-4 w-4 animate-spin text-blue-600" />
-              ) : (
-                <LocateFixed className={`h-4 w-4 ${activePosition ? 'text-blue-600' : 'text-slate-600'}`} />
-              )}
-            </button>
-
+            {/* Batal Patok Terakhir */}
             {points.length > 0 && (
               <button
                 type="button"
                 onClick={handleUndo}
                 disabled={disabled}
-                className="inline-flex items-center gap-1 px-3 py-2.5 rounded-full border border-slate-300/80 bg-white/80 hover:bg-white text-slate-700 font-medium text-xs shadow-sm transition-all duration-200 active:scale-[0.97] disabled:opacity-50 cursor-pointer"
-                title="Hapus titik terakhir"
+                className="inline-flex min-h-10 items-center gap-1 px-2.5 sm:px-3 py-2 rounded-full border border-slate-200 bg-white/90 hover:bg-white text-slate-700 font-semibold text-xs shadow-xs transition-all duration-150 active:scale-[0.96] disabled:opacity-50 cursor-pointer shrink-0"
+                title="Hapus patok terakhir"
               >
-                <Undo className="h-3.5 w-3.5 text-slate-600" />
+                <Undo className="h-3.5 w-3.5 text-slate-500" />
                 <span className="hidden sm:inline">Batal</span>
+              </button>
+            )}
+
+            {/* Selesai / Kunci Poligon langsung dari Dock */}
+            {points.length >= 3 && (
+              <button
+                type="button"
+                onClick={handleLock}
+                disabled={disabled}
+                className="inline-flex min-h-10 items-center gap-1 px-3 sm:px-3.5 py-2 rounded-full bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs shadow-sm transition-all duration-150 active:scale-[0.96] disabled:opacity-50 cursor-pointer shrink-0"
+                title="Kunci poligon batas bidang tanah"
+              >
+                <Check className="h-3.5 w-3.5" />
+                <span>Selesai</span>
               </button>
             )}
           </div>
         )}
       </div>
 
-      {/* Bottom Action Controls Bar */}
-      <div className="p-2.5 sm:p-3 bg-slate-50 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm">
-        <div className="flex items-center gap-1.5 text-slate-500">
-          <span className="font-mono text-slate-700 font-semibold">{points.length}</span> patok terpasang
+      {/* ── Bottom Action Controls Bar (Desktop View) ────────────────── */}
+      <div className="hidden lg:flex p-2.5 sm:p-3 bg-white border-t border-slate-200/90 items-center justify-between gap-2 text-xs">
+        <div className="flex items-center gap-2 text-slate-500 font-medium">
+          <span className="font-mono text-slate-800 font-bold bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+            {points.length} patok
+          </span>
+          {points.length >= 3 && areaM2 && (
+            <span className="font-mono text-emerald-700 font-bold">
+              Luas: {formatAreaM2(areaM2)}
+            </span>
+          )}
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
           {points.length > 0 && !isLocked && (
             <button
               type="button"
               onClick={handleUndo}
               disabled={disabled}
-              className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs sm:text-sm transition-all duration-200 hover:opacity-90 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="inline-flex min-h-9 items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-xs transition-all active:scale-[0.97] cursor-pointer"
             >
-              <Undo className="h-3.5 w-3.5 text-slate-600" />
+              <Undo className="h-3.5 w-3.5 text-slate-500" />
               <span>Hapus Titik</span>
             </button>
           )}
@@ -637,10 +656,10 @@ export default function SurveyDrawMap({
               type="button"
               onClick={handleReset}
               disabled={disabled}
-              className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-rose-200 bg-white hover:bg-rose-50 hover:border-rose-300 text-rose-700 font-medium text-xs sm:text-sm transition-all duration-200 hover:opacity-90 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="inline-flex min-h-9 items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-700 font-semibold text-xs transition-all active:scale-[0.97] cursor-pointer"
             >
               <RotateCcw className="h-3.5 w-3.5 text-rose-600" />
-              <span>Ulangi</span>
+              <span>Ulangi Semua</span>
             </button>
           )}
 
@@ -649,7 +668,7 @@ export default function SurveyDrawMap({
               type="button"
               onClick={handleLock}
               disabled={disabled}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm shadow-sm transition-all duration-200 hover:opacity-90 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="inline-flex min-h-9 items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition-all active:scale-[0.97] cursor-pointer"
             >
               <Check className="h-4 w-4" />
               <span>Selesai (Kunci Poligon)</span>
@@ -661,10 +680,10 @@ export default function SurveyDrawMap({
               type="button"
               onClick={handleUnlock}
               disabled={disabled}
-              className="inline-flex items-center gap-1 px-3 py-2 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 font-semibold text-xs sm:text-sm hover:bg-emerald-100 transition-all duration-200 hover:opacity-90 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="inline-flex min-h-9 items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 font-bold text-xs hover:bg-emerald-100 transition-all active:scale-[0.97] cursor-pointer"
             >
               <Edit3 className="h-3.5 w-3.5" />
-              <span>Edit Kembali</span>
+              <span>Edit Kembali Poligon</span>
             </button>
           )}
         </div>
@@ -672,3 +691,4 @@ export default function SurveyDrawMap({
     </div>
   );
 }
+

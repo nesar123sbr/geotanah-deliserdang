@@ -4,6 +4,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   GeoTanah Dairi — Design System v2.0
+   Principal Designer: Antigravity AI
+   Theme: Dark Earth Topography + Emerald Precision
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -39,92 +45,386 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: calc(var(--radius) * 1.5);
+  --radius-2xl: calc(var(--radius) * 2);
+  --radius-3xl: calc(var(--radius) * 2.5);
+  --radius-4xl: calc(var(--radius) * 3);
 }
 
+/* ── Light Mode: Slate-Warm + Emerald Accent ────────────────────────────── */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  /* Surface scale – warm slate undertone evoking official cadastral paper */
+  --background: oklch(0.975 0.004 240);
+  --foreground: oklch(0.135 0.015 240);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.135 0.015 240);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.135 0.015 240);
+  /* Primary: deep emerald (land/earth) */
+  --primary: oklch(0.42 0.145 157);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.96 0.008 240);
+  --secondary-foreground: oklch(0.25 0.02 240);
+  --muted: oklch(0.955 0.006 240);
+  --muted-foreground: oklch(0.52 0.02 240);
+  --accent: oklch(0.95 0.025 157);
+  --accent-foreground: oklch(0.3 0.12 157);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --border: oklch(0.908 0.01 240);
+  --input: oklch(0.908 0.01 240);
+  --ring: oklch(0.52 0.12 157);
+  /* Chart: emerald scale */
+  --chart-1: oklch(0.52 0.145 157);
+  --chart-2: oklch(0.65 0.12 180);
+  --chart-3: oklch(0.75 0.09 195);
+  --chart-4: oklch(0.82 0.065 210);
+  --chart-5: oklch(0.9 0.04 220);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.97 0.006 240);
+  --sidebar-foreground: oklch(0.135 0.015 240);
+  --sidebar-primary: oklch(0.42 0.145 157);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-accent: oklch(0.945 0.025 157);
+  --sidebar-accent-foreground: oklch(0.3 0.12 157);
+  --sidebar-border: oklch(0.908 0.01 240);
+  --sidebar-ring: oklch(0.52 0.12 157);
+
+  /* ── Custom GeoTanah design tokens ─── */
+  --gt-emerald-50: oklch(0.974 0.025 157);
+  --gt-emerald-100: oklch(0.946 0.05 157);
+  --gt-emerald-200: oklch(0.888 0.09 157);
+  --gt-emerald-400: oklch(0.72 0.145 157);
+  --gt-emerald-600: oklch(0.52 0.145 157);
+  --gt-emerald-700: oklch(0.42 0.135 157);
+  --gt-emerald-800: oklch(0.34 0.11 157);
+  --gt-emerald-900: oklch(0.27 0.085 157);
 }
 
+/* ── Dark Mode: not used in app but kept for completeness ────────────────── */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.13 0.012 240);
+  --foreground: oklch(0.95 0.008 240);
+  --card: oklch(0.18 0.012 240);
+  --card-foreground: oklch(0.95 0.008 240);
+  --popover: oklch(0.18 0.012 240);
+  --popover-foreground: oklch(0.95 0.008 240);
+  --primary: oklch(0.62 0.145 157);
+  --primary-foreground: oklch(0.1 0.02 157);
+  --secondary: oklch(0.24 0.012 240);
+  --secondary-foreground: oklch(0.95 0.008 240);
+  --muted: oklch(0.24 0.012 240);
+  --muted-foreground: oklch(0.65 0.02 240);
+  --accent: oklch(0.24 0.012 240);
+  --accent-foreground: oklch(0.95 0.008 240);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.52 0.12 157);
+  --chart-1: oklch(0.62 0.145 157);
+  --chart-2: oklch(0.72 0.12 180);
+  --chart-3: oklch(0.79 0.09 195);
+  --chart-4: oklch(0.85 0.065 210);
+  --chart-5: oklch(0.9 0.04 220);
+  --sidebar: oklch(0.18 0.012 240);
+  --sidebar-foreground: oklch(0.95 0.008 240);
+  --sidebar-primary: oklch(0.62 0.145 157);
+  --sidebar-primary-foreground: oklch(0.1 0.02 157);
+  --sidebar-accent: oklch(0.24 0.012 240);
+  --sidebar-accent-foreground: oklch(0.95 0.008 240);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.52 0.12 157);
 }
 
+/* ── Base Layer ─────────────────────────────────────────────────────────── */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
+
   html {
     @apply font-sans;
+    /* Smooth text rendering for cadastral precision labels */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* Lock body to viewport on mobile survey mode */
+    overscroll-behavior: none;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    /* Prevent scroll-zoom on mobile when interacting with map */
+    touch-action: manipulation;
+  }
+
+  /* Ultra-small device baseline (< 360px) */
+  @media (max-width: 359px) {
+    html { font-size: 14px; }
+  }
+}
+
+/* ── Custom Scrollbar — Slim & Elegant ──────────────────────────────────── */
+@layer utilities {
+  /* Custom scrollbar for webkit browsers */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.78 0.02 240) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: oklch(0.78 0.02 240);
+    border-radius: 999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.65 0.04 240);
+  }
+
+  /* Hide scrollbar utility (for overflow-x filter bars) */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ── Glass Panel utility ────────────────────────────────────────────── */
+  .glass-panel {
+    background: oklch(1 0 0 / 88%);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid oklch(1 0 0 / 60%);
+  }
+
+  .glass-panel-dark {
+    background: oklch(0.08 0.01 240 / 85%);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid oklch(1 0 0 / 12%);
+  }
+
+  /* ── Field Status badge ring indicator ──────────────────────────────── */
+  .status-ring-ok {
+    box-shadow: 0 0 0 3px oklch(0.52 0.145 157 / 25%);
+  }
+  .status-ring-warn {
+    box-shadow: 0 0 0 3px oklch(0.75 0.16 80 / 25%);
+  }
+  .status-ring-err {
+    box-shadow: 0 0 0 3px oklch(0.6 0.22 25 / 25%);
+  }
+
+  /* ── Map Overlay utility — ensures text legibility over satellite tiles */
+  .map-label-chip {
+    text-shadow: 0 1px 3px rgba(0,0,0,0.7), 0 0 8px rgba(0,0,0,0.4);
+    letter-spacing: 0.02em;
+  }
+
+  /* ── Thumb-zone safe area padding (notch/home bar aware) ─────────────── */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 12px);
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* ── Glassmorphism Floating Dock ───────────────────────────────────── */
+  .floating-dock {
+    background: oklch(1 0 0 / 82%);
+    backdrop-filter: blur(20px) saturate(200%);
+    -webkit-backdrop-filter: blur(20px) saturate(200%);
+    border: 1px solid oklch(1 0 0 / 55%);
+    box-shadow:
+      0 4px 24px oklch(0.1 0.02 240 / 20%),
+      0 1px 4px oklch(0.1 0.02 240 / 12%),
+      inset 0 1px 0 oklch(1 0 0 / 80%);
+  }
+
+  /* ── KPI card gradient overlays ─────────────────────────────────────── */
+  .kpi-emerald {
+    background: linear-gradient(135deg,
+      oklch(0.97 0.03 157) 0%,
+      oklch(0.99 0.01 160) 100%);
+    border-color: oklch(0.86 0.07 157);
+  }
+  .kpi-amber {
+    background: linear-gradient(135deg,
+      oklch(0.97 0.04 80) 0%,
+      oklch(0.99 0.02 85) 100%);
+    border-color: oklch(0.86 0.1 80);
+  }
+  .kpi-rose {
+    background: linear-gradient(135deg,
+      oklch(0.97 0.025 15) 0%,
+      oklch(0.99 0.012 20) 100%);
+    border-color: oklch(0.86 0.07 15);
+  }
+  .kpi-slate {
+    background: linear-gradient(135deg,
+      oklch(0.98 0.006 240) 0%,
+      oklch(1 0 0) 100%);
+    border-color: oklch(0.91 0.01 240);
+  }
+
+  /* ── High-contrast button for field use (outdoor legibility) ─────────── */
+  .btn-field-primary {
+    background: oklch(0.42 0.145 157);
+    color: white;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    box-shadow:
+      0 2px 8px oklch(0.3 0.1 157 / 40%),
+      0 1px 2px oklch(0.1 0.05 157 / 30%),
+      inset 0 1px 0 oklch(0.7 0.12 157 / 30%);
+    transition: all 180ms cubic-bezier(0.2, 0, 0, 1);
+  }
+  .btn-field-primary:hover:not(:disabled) {
+    background: oklch(0.52 0.145 157);
+    box-shadow:
+      0 4px 16px oklch(0.3 0.1 157 / 50%),
+      0 1px 3px oklch(0.1 0.05 157 / 40%),
+      inset 0 1px 0 oklch(0.7 0.12 157 / 30%);
+    transform: translateY(-1px);
+  }
+  .btn-field-primary:active:not(:disabled) {
+    transform: translateY(0) scale(0.975);
+    box-shadow: 0 1px 4px oklch(0.3 0.1 157 / 30%);
+  }
+
+  .btn-field-blue {
+    background: oklch(0.42 0.18 240);
+    color: white;
+    font-weight: 700;
+    box-shadow:
+      0 2px 8px oklch(0.3 0.12 240 / 40%),
+      inset 0 1px 0 oklch(0.7 0.12 240 / 30%);
+    transition: all 180ms cubic-bezier(0.2, 0, 0, 1);
+  }
+  .btn-field-blue:hover:not(:disabled) {
+    background: oklch(0.52 0.18 240);
+    transform: translateY(-1px);
+  }
+  .btn-field-blue:active:not(:disabled) {
+    transform: translateY(0) scale(0.975);
+  }
+
+  /* ── Parcel list item selection indicator ───────────────────────────── */
+  .parcel-item-selected {
+    background: oklch(0.97 0.035 157);
+    border-color: oklch(0.72 0.12 157);
+    box-shadow:
+      0 0 0 1px oklch(0.72 0.12 157 / 30%),
+      0 2px 8px oklch(0.42 0.12 157 / 12%);
+  }
+
+  /* ── Inspector panel data rows ──────────────────────────────────────── */
+  .data-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding-block: 0.375rem;
+    border-bottom: 1px solid oklch(0.91 0.01 240 / 70%);
+    font-size: 0.6875rem;
+    line-height: 1.4;
+  }
+  .data-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+  .data-row dt {
+    color: oklch(0.52 0.02 240);
+    font-family: var(--font-sans);
+    flex-shrink: 0;
+  }
+  .data-row dd {
+    font-family: var(--font-geist-mono);
+    color: oklch(0.18 0.015 240);
+    font-weight: 600;
+    text-align: right;
+  }
+
+  /* ── Smooth page transitions ────────────────────────────────────────── */
+  @media (prefers-reduced-motion: no-preference) {
+    .page-fade-in {
+      animation: pageFadeIn 280ms cubic-bezier(0.2, 0, 0, 1) forwards;
+    }
+  }
+
+  @keyframes pageFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Blue GPS dot pulse ─────────────────────────────────────────────── */
+  @keyframes blueDotPulse {
+    0%   { transform: scale(0.4); opacity: 0.9; }
+    70%  { transform: scale(1.7); opacity: 0; }
+    100% { transform: scale(1.7); opacity: 0; }
+  }
+
+  /* ── Leaflet control style overrides (minimal, no clutter) ──────────── */
+  .leaflet-control-zoom {
+    border: none !important;
+    box-shadow:
+      0 4px 16px rgba(0,0,0,0.18),
+      0 1px 3px rgba(0,0,0,0.12),
+      inset 0 1px 0 rgba(255,255,255,0.9) !important;
+    border-radius: 14px !important;
+    overflow: hidden;
+  }
+  .leaflet-control-zoom-in,
+  .leaflet-control-zoom-out {
+    background: rgba(255,255,255,0.92) !important;
+    backdrop-filter: blur(12px) !important;
+    color: oklch(0.18 0.015 240) !important;
+    font-size: 18px !important;
+    font-weight: 300 !important;
+    width: 36px !important;
+    height: 36px !important;
+    line-height: 34px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: background 150ms ease !important;
+  }
+  .leaflet-control-zoom-in:hover,
+  .leaflet-control-zoom-out:hover {
+    background: rgba(255,255,255,1) !important;
+    color: oklch(0.42 0.145 157) !important;
+  }
+  .leaflet-control-zoom-in { border-bottom: 1px solid rgba(0,0,0,0.08) !important; }
+
+  .leaflet-control-layers {
+    border: none !important;
+    border-radius: 12px !important;
+    box-shadow:
+      0 4px 16px rgba(0,0,0,0.18),
+      inset 0 1px 0 rgba(255,255,255,0.9) !important;
+    background: rgba(255,255,255,0.92) !important;
+    backdrop-filter: blur(12px) !important;
+    font-size: 12px !important;
+  }
+  .leaflet-control-layers-toggle {
+    width: 36px !important;
+    height: 36px !important;
+    background-size: 18px 18px !important;
+  }
+  .leaflet-popup-content-wrapper {
+    border-radius: 14px !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2) !important;
+    border: 1px solid rgba(0,0,0,0.06) !important;
+  }
+  .leaflet-popup-tip {
+    box-shadow: none !important;
   }
 }

@@ -526,86 +526,96 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
-      <header className="border-b border-slate-200/80 bg-white/95 backdrop-blur-md px-3 sm:px-4 md:px-6 py-2.5 sm:py-3.5 flex flex-wrap gap-2.5 sm:gap-3 items-center justify-between sticky top-0 z-50 shadow-xs">
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-emerald-600 flex items-center justify-center shadow-md shadow-emerald-600/20 text-white shrink-0">
-            <Compass className="h-4 w-4 sm:h-5 sm:w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <h1 className="font-bold text-sm sm:text-base md:text-lg tracking-tight text-slate-900">GeoTanah Dairi</h1>
-              <span className="hidden xs:inline-block px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-mono bg-emerald-50 border border-emerald-200 text-emerald-800">
-                PostGIS v2 Spheroid
-              </span>
+    <div className="min-h-screen bg-[oklch(0.963_0.006_240)] text-slate-900 flex flex-col font-sans selection:bg-emerald-600 selection:text-white">
+      {/* ── Header: Dark Topography — authoritative cadaster nav ─────────── */}
+      <header className="sticky top-0 z-50 safe-top border-b border-slate-900/10 bg-slate-950/96 backdrop-blur-xl shadow-sm shadow-black/20">
+        <div className="px-3 sm:px-5 md:px-6 py-0 flex items-center justify-between gap-2 h-14 sm:h-16 max-w-[1920px] mx-auto w-full">
+          {/* Brand */}
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
+            <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-lg shadow-emerald-900/40 text-white shrink-0">
+              <Compass className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
             </div>
-            <p className="text-[11px] sm:text-xs text-slate-500">Monitoring Kadastral & Inventarisasi KKP Kantah Dairi</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setIsExportModalOpen(true)}
-            disabled={isExporting || loading}
-            className="inline-flex min-h-10 sm:min-h-11 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/90 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-slate-700 hover:text-slate-900 shadow-xs transition-all duration-200 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            title="Export Geodatabase lengkap (GeoJSON, CSV, Rekap, dan Foto) ke format ZIP"
-          >
-            <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600" />
-            <span className="hidden sm:inline">Export Geodatabase</span>
-            <span className="sm:hidden">Export</span>
-          </button>
-          <Link 
-            href="/survey" 
-            className="inline-flex min-h-10 sm:min-h-11 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-emerald-600 px-3 sm:px-4 text-xs sm:text-sm font-semibold text-white hover:bg-emerald-500 shadow-sm shadow-emerald-950/20 transition-all duration-200 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
-          >
-            <Camera className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Buka Mode Sensus</span>
-            <span className="sm:hidden">Sensus</span>
-          </Link>
-
-          {/* Autentikasi Pengguna & Role Badge */}
-          {currentUserEmail ? (
-            <div className="flex items-center gap-1.5 sm:gap-2 bg-white border border-slate-200/90 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs shadow-xs text-slate-700">
-              <User className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-              <span className="text-slate-700 font-mono text-[11px] max-w-[100px] sm:max-w-[180px] truncate" title={currentUserEmail}>
-                {currentUserEmail}
-              </span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                isAdmin ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-              }`}>
-                {isAdmin ? 'Admin' : 'Surveyor'}
-              </span>
-              <button
-                type="button"
-                onClick={handleLogout}
-                title="Keluar akun"
-                className="ml-1 text-slate-400 hover:text-rose-600 transition-all duration-200 hover:opacity-90 active:scale-[0.97] p-1 rounded-lg hover:bg-rose-50 cursor-pointer"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-              </button>
+            <div className="leading-none">
+              <div className="flex items-center gap-2">
+                <h1 className="font-bold text-sm sm:text-base tracking-tight text-white">GeoTanah Dairi</h1>
+                <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono bg-emerald-600/20 border border-emerald-500/30 text-emerald-400">
+                  PostGIS v2
+                </span>
+              </div>
+              <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5 hidden xs:block">Monitoring Kadastral · Kantah Kab. Dairi</p>
             </div>
-          ) : (
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Export */}
             <button
               type="button"
-              onClick={() => setIsAuthModalOpen(true)}
-              className="inline-flex min-h-10 sm:min-h-11 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200/90 px-3 sm:px-3.5 text-xs font-semibold text-slate-700 hover:text-slate-900 shadow-xs transition-all duration-200 hover:opacity-90 active:scale-[0.97] cursor-pointer"
+              onClick={() => setIsExportModalOpen(true)}
+              disabled={isExporting || loading}
+              className="inline-flex min-h-9 sm:min-h-10 items-center gap-1.5 rounded-xl border border-white/10 bg-white/8 hover:bg-white/14 px-2.5 sm:px-3.5 text-xs font-semibold text-slate-200 hover:text-white transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              title="Export Geodatabase"
             >
-              <LogIn className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-600" />
-              <span>Login / Masuk</span>
+              <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-400" />
+              <span className="hidden sm:inline">Export Geodatabase</span>
+              <span className="sm:hidden">Export</span>
             </button>
-          )}
 
-          <div className="hidden xl:flex items-center gap-2 bg-slate-50 border border-slate-200/80 px-3 py-1.5 rounded-xl text-xs text-slate-600">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-medium">Kantah Kab. Dairi</span>
+            {/* Sensus */}
+            <Link
+              href="/survey"
+              className="inline-flex min-h-9 sm:min-h-10 items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3 sm:px-4 text-xs font-bold text-white shadow-lg shadow-emerald-900/30 transition-all duration-150 active:scale-[0.97]"
+            >
+              <Camera className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Buka Mode Sensus</span>
+              <span className="sm:hidden">Sensus</span>
+            </Link>
+
+            {/* Auth */}
+            {currentUserEmail ? (
+              <div className="flex items-center gap-1 sm:gap-1.5 bg-white/8 border border-white/10 px-2 sm:px-3 py-1.5 rounded-xl text-xs text-slate-200">
+                <User className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                <span className="font-mono text-[10px] sm:text-[11px] max-w-[80px] sm:max-w-[140px] truncate text-slate-300" title={currentUserEmail}>
+                  {currentUserEmail}
+                </span>
+                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                  isAdmin ? 'bg-rose-600/25 text-rose-300 border border-rose-500/30' : 'bg-emerald-600/25 text-emerald-300 border border-emerald-500/30'
+                }`}>
+                  {isAdmin ? 'Admin' : 'Surveyor'}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="ml-0.5 text-slate-500 hover:text-rose-400 transition-colors p-1 rounded cursor-pointer"
+                  title="Keluar akun"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsAuthModalOpen(true)}
+                className="inline-flex min-h-9 sm:min-h-10 items-center gap-1.5 rounded-xl border border-white/10 bg-white/8 hover:bg-white/14 px-2.5 sm:px-3 text-xs font-semibold text-slate-200 hover:text-white transition-all duration-150 cursor-pointer"
+              >
+                <LogIn className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Login</span>
+              </button>
+            )}
+
+            {/* Live Status — desktop only */}
+            <div className="hidden xl:flex items-center gap-1.5 bg-emerald-600/15 border border-emerald-500/25 px-2.5 py-1.5 rounded-lg text-[10px] text-emerald-400 font-medium">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Live · Kantah Dairi</span>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 p-3 sm:p-4 md:p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 md:gap-5 max-w-[1700px] w-full mx-auto">
-        {/* Panel Kiri (Desktop) / Bawah Peta (Mobile): Daftar Persil & Statistik */}
-        <div className="order-2 lg:order-1 lg:col-span-3 flex flex-col gap-3 sm:gap-4">
+      {/* ── Main Grid ─────────────────────────────────────────────────────── */}
+      <main className="flex-1 p-2.5 sm:p-4 md:p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-2.5 sm:gap-4 md:gap-5 max-w-[1920px] w-full mx-auto">
+        {/* Panel Kiri: Statistik KPI + Daftar Persil */}
+        <div className="order-2 lg:order-1 lg:col-span-3 flex flex-col gap-3">
           {loadError && (
             <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-900 shadow-xs space-y-2.5">
               <div className="flex items-center gap-2 font-semibold text-rose-800">
@@ -620,7 +630,7 @@ export default function Dashboard() {
                   setLoadError(null);
                   setReload((prev) => prev + 1);
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-medium transition-all duration-200 hover:opacity-90 active:scale-[0.97] text-xs shadow-xs"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-medium transition-all duration-200 hover:opacity-90 active:scale-[0.97] text-xs shadow-xs cursor-pointer"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 <span>Coba Lagi</span>
@@ -628,55 +638,61 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* ── KPI Stats Grid ────────────────────────────────────────── */}
           {loading ? (
-            <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="bg-white border border-slate-200/80 rounded-2xl p-3 sm:p-3.5 animate-pulse space-y-2">
-                  <div className="h-3 w-16 bg-slate-200 rounded" />
-                  <div className="h-6 w-12 bg-slate-300 rounded" />
-                  <div className="h-2.5 w-20 bg-slate-200 rounded" />
+                <div key={i} className="bg-white border border-slate-200 rounded-2xl p-3.5 animate-pulse space-y-2.5">
+                  <div className="h-2.5 w-14 bg-slate-200 rounded-full" />
+                  <div className="h-7 w-10 bg-slate-300 rounded-lg" />
+                  <div className="h-2 w-20 bg-slate-200 rounded-full" />
                 </div>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
-              <div className="bg-white border border-slate-200/70 rounded-2xl p-3 sm:p-3.5 shadow-xs">
-                <span className="text-[11px] sm:text-xs text-slate-500 font-medium">Total NIB</span>
-                <div className="text-lg sm:text-xl font-bold font-mono text-slate-900 mt-0.5">{totalParcels}</div>
-                <span className="text-[10px] text-slate-400">Persil Sidikalang</span>
+            <div className="grid grid-cols-2 gap-2">
+              {/* Total NIB */}
+              <div className="kpi-slate border rounded-2xl p-3 sm:p-3.5 shadow-xs">
+                <span className="text-[10px] sm:text-[11px] text-slate-500 font-semibold tracking-wide uppercase">Total NIB</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-slate-800 mt-1 leading-none tabular-nums">{totalParcels}</div>
+                <span className="text-[10px] text-slate-400 mt-1 block">Persil Sidikalang</span>
               </div>
-              <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-2xl p-3 sm:p-3.5 shadow-xs">
-                <span className="text-[11px] sm:text-xs text-emerald-800 font-medium">KKP: KW 1</span>
-                <div className="text-lg sm:text-xl font-bold font-mono text-emerald-700 mt-0.5">{kw1Count}</div>
-                <span className="text-[10px] text-emerald-600">Spasial Lengkap</span>
+              {/* KW 1 */}
+              <div className="kpi-emerald border rounded-2xl p-3 sm:p-3.5 shadow-xs">
+                <span className="text-[10px] sm:text-[11px] text-emerald-700 font-semibold tracking-wide uppercase">KKP: KW 1</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-emerald-700 mt-1 leading-none tabular-nums">{kw1Count}</div>
+                <span className="text-[10px] text-emerald-600 mt-1 block">Spasial Lengkap</span>
               </div>
-              <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-3 sm:p-3.5 shadow-xs">
-                <span className="text-[11px] sm:text-xs text-amber-800 font-medium">KKP: KW 4/5/6</span>
-                <div className="text-lg sm:text-xl font-bold font-mono text-amber-700 mt-0.5">{kw456Count}</div>
-                <span className="text-[10px] text-amber-600">Belum Terpetakan</span>
+              {/* KW 4/5/6 */}
+              <div className="kpi-amber border rounded-2xl p-3 sm:p-3.5 shadow-xs">
+                <span className="text-[10px] sm:text-[11px] text-amber-700 font-semibold tracking-wide uppercase">KW 4/5/6</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-amber-700 mt-1 leading-none tabular-nums">{kw456Count}</div>
+                <span className="text-[10px] text-amber-600 mt-1 block">Belum Terpetakan</span>
               </div>
-              <div className="bg-rose-50/80 border border-rose-200/80 rounded-2xl p-3 sm:p-3.5 shadow-xs">
-                <span className="text-[11px] sm:text-xs text-rose-800 font-medium">Tumpang Tindih</span>
-                <div className="text-lg sm:text-xl font-bold font-mono text-rose-700 mt-0.5">{conflictCount}</div>
-                <span className="text-[10px] text-rose-600">Indikasi Overlap</span>
+              {/* Tumpang Tindih */}
+              <div className="kpi-rose border rounded-2xl p-3 sm:p-3.5 shadow-xs">
+                <span className="text-[10px] sm:text-[11px] text-rose-700 font-semibold tracking-wide uppercase">Overlap</span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-rose-700 mt-1 leading-none tabular-nums">{conflictCount}</div>
+                <span className="text-[10px] text-rose-600 mt-1 block">Indikasi Tumpang Tindih</span>
               </div>
             </div>
           )}
 
-          <div className="bg-white border border-slate-200/70 rounded-2xl p-3.5 sm:p-4 shadow-xs flex-1 flex flex-col min-h-[400px]">
+          {/* ── Daftar Persil Panel ──────────────────────────────────────── */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-4 shadow-xs flex-1 flex flex-col min-h-[380px] lg:min-h-0">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+              <h2 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                 <Layers className="h-3.5 w-3.5 text-emerald-600" /> Daftar Persil
               </h2>
-              <span className="text-[10px] bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md text-slate-600 font-mono">
-                {loading ? '...' : `${filteredParcels.length} Bidang`}
+              <span className="text-[10px] bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md text-slate-600 font-mono font-semibold">
+                {loading ? '...' : `${filteredParcels.length}`} Bidang
               </span>
             </div>
 
-            {/* Kotak Input Pencarian */}
-            <div className="relative mb-3">
+            {/* Search */}
+            <div className="relative mb-2.5">
               <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                <Search className="h-4 w-4 text-slate-400" />
+                <Search className="h-3.5 w-3.5 text-slate-400" />
               </div>
               <input
                 type="text"
@@ -686,41 +702,42 @@ export default function Dashboard() {
                   if (e.target.value) setFilterTab('SEMUA');
                 }}
                 placeholder="Cari NIB atau Pemilik..."
-                className="w-full min-h-11 bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 transition-all duration-200"
+                className="w-full min-h-10 bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15 transition-all duration-150"
               />
             </div>
 
-            <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200/80 mb-2 text-[10px] sm:text-xs">
-              <button 
+            {/* KKP Filter Tabs */}
+            <div className="grid grid-cols-4 gap-0.5 p-1 bg-slate-100 rounded-xl border border-slate-200/80 mb-2 text-[10px]">
+              <button
                 onClick={() => setFilterTab('SEMUA')}
-                className={`py-1.5 rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.97] ${filterTab === 'SEMUA' ? 'bg-white text-slate-900 font-semibold shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`py-1.5 rounded-lg font-semibold transition-all duration-150 active:scale-[0.97] ${filterTab === 'SEMUA' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 Semua
               </button>
-              <button 
+              <button
                 onClick={() => setFilterTab('KW1')}
-                className={`py-1.5 rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.97] ${filterTab === 'KW1' ? 'bg-emerald-600 text-white font-semibold shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`py-1.5 rounded-lg font-semibold transition-all duration-150 active:scale-[0.97] ${filterTab === 'KW1' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 KW 1
               </button>
-              <button 
+              <button
                 onClick={() => setFilterTab('KW456')}
-                className={`py-1.5 rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.97] ${filterTab === 'KW456' ? 'bg-amber-600 text-white font-semibold shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`py-1.5 rounded-lg font-semibold transition-all duration-150 active:scale-[0.97] ${filterTab === 'KW456' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-700'}`}
               >
-                KW 4/5/6
+                4/5/6
               </button>
-              <button 
+              <button
                 onClick={() => setFilterTab('CONFLICT')}
-                className={`py-1.5 rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.97] ${filterTab === 'CONFLICT' ? 'bg-rose-600 text-white font-semibold shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                className={`py-1.5 rounded-lg font-semibold transition-all duration-150 active:scale-[0.97] ${filterTab === 'CONFLICT' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 Overlap
               </button>
             </div>
 
-            {/* Filter Tab Program Sensus */}
-            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200/80 mb-3 text-[10px] sm:text-xs overflow-x-auto no-scrollbar">
+            {/* Program Filter */}
+            <div className="flex items-center gap-0.5 p-1 bg-slate-100 rounded-xl border border-slate-200/80 mb-3 text-[10px] overflow-x-auto no-scrollbar">
               {[
-                { id: 'ALL', label: 'Semua Program', icon: '' },
+                { id: 'ALL', label: 'Semua', icon: '' },
                 { id: 'Wakaf', label: 'Wakaf', icon: '🕌' },
                 { id: 'MBR', label: 'MBR', icon: '🏠' },
                 { id: 'Rumah Ibadah', label: 'Ibadah', icon: '🏛️' },
@@ -730,10 +747,10 @@ export default function Dashboard() {
                 <button
                   key={item.id}
                   onClick={() => setProgramFilter(item.id as typeof programFilter)}
-                  className={`py-1 px-2.5 rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.97] whitespace-nowrap shrink-0 flex items-center gap-1 ${
+                  className={`py-1 px-2 rounded-lg font-semibold transition-all duration-150 whitespace-nowrap shrink-0 flex items-center gap-0.5 ${
                     programFilter === item.id
-                      ? 'bg-emerald-600 text-white font-semibold shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/70'
                   }`}
                 >
                   {item.icon && <span>{item.icon}</span>}
@@ -742,65 +759,67 @@ export default function Dashboard() {
               ))}
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[350px]">
+            {/* Parcel list */}
+            <div className="flex-1 overflow-y-auto space-y-1.5 pr-0.5 scrollbar-thin">
               {loading ? (
-                <div className="space-y-2">
-                  {[1, 2, 3, 4].map((i) => (
+                <div className="space-y-1.5">
+                  {[1, 2, 3, 4, 5].map((i) => (
                     <div key={i} className="p-3 rounded-xl border border-slate-200 bg-slate-50/60 animate-pulse space-y-2">
                       <div className="flex items-center justify-between">
-                        <div className="h-3.5 w-24 bg-slate-200 rounded" />
-                        <div className="h-3.5 w-10 bg-slate-200 rounded" />
+                        <div className="h-3 w-24 bg-slate-200 rounded" />
+                        <div className="h-3 w-8 bg-slate-200 rounded" />
                       </div>
-                      <div className="h-3 w-32 bg-slate-200 rounded" />
-                      <div className="h-2.5 w-20 bg-slate-200 rounded" />
+                      <div className="h-2.5 w-32 bg-slate-200 rounded" />
                     </div>
                   ))}
                 </div>
               ) : filteredParcels.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-                  <div className="h-10 w-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 mb-2">
+                <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                  <div className="h-10 w-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 mb-3">
                     <Search className="h-4 w-4" />
                   </div>
-                  <p className="text-xs font-semibold text-slate-800">Tidak ada persil cocok</p>
-                  <p className="text-[11px] text-slate-500 mt-1 max-w-[200px]">Coba ubah kata kunci NIB atau ganti filter tab di atas.</p>
+                  <p className="text-xs font-semibold text-slate-700">Tidak ada persil cocok</p>
+                  <p className="text-[11px] text-slate-400 mt-1 max-w-[180px]">Ubah kata kunci atau ganti filter.</p>
                 </div>
               ) : (
                 filteredParcels.map((parcel) => (
                   <button
                     key={parcel.id}
                     onClick={() => setSelectedParcel(parcel)}
-                    className={`w-full text-left p-3 rounded-xl border transition-all duration-200 hover:opacity-90 active:scale-[0.98] flex items-center justify-between ${
+                    className={`w-full text-left p-2.5 rounded-xl border transition-all duration-150 active:scale-[0.98] group ${
                       selectedParcel?.id === parcel.id
-                        ? 'bg-emerald-50/90 border-emerald-400 shadow-xs'
-                        : 'bg-slate-50/70 border-slate-200/80 hover:bg-slate-100/80 hover:border-slate-300'
+                        ? 'parcel-item-selected'
+                        : 'bg-slate-50/70 border-slate-200/80 hover:bg-white hover:border-slate-300 hover:shadow-xs'
                     }`}
                   >
-                    <div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs font-mono font-semibold text-slate-900">{parcel.nib}</span>
-                        {parcel.kkp_category && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 font-mono font-semibold">
-                            {parcel.kkp_category}
-                          </span>
-                        )}
-                        {(() => {
-                          const prog = parcel.program_type || 'Reguler';
-                          const conf = PROGRAM_CONFIG[prog] || PROGRAM_CONFIG.Reguler;
-                          return (
-                            <span 
-                              className={`text-[9px] px-1.5 py-0.5 rounded border font-medium flex items-center gap-0.5 ${conf.badgeClass}`}
-                              title={`Program: ${prog}`}
-                            >
-                              <span>{conf.icon}</span>
-                              <span>{conf.label}</span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <span className="text-[11px] font-mono font-bold text-slate-900">{parcel.nib}</span>
+                          {parcel.kkp_category && (
+                            <span className="text-[8px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 font-mono font-bold">
+                              {parcel.kkp_category}
                             </span>
-                          );
-                        })()}
+                          )}
+                          {(() => {
+                            const prog = parcel.program_type || 'Reguler';
+                            const conf = PROGRAM_CONFIG[prog] || PROGRAM_CONFIG.Reguler;
+                            return (
+                              <span
+                                className={`text-[8px] px-1.5 py-0.5 rounded border font-semibold flex items-center gap-0.5 ${conf.badgeClass}`}
+                                title={`Program: ${prog}`}
+                              >
+                                <span>{conf.icon}</span>
+                                <span>{conf.label}</span>
+                              </span>
+                            );
+                          })()}
+                        </div>
+                        <div className="text-[11px] text-slate-600 mt-0.5 font-medium truncate">{parcel.owner_name}</div>
+                        <div className="text-[10px] text-slate-400 truncate">{parcel.village}</div>
                       </div>
-                      <div className="text-[11px] text-slate-600 mt-0.5 font-medium">{parcel.owner_name}</div>
-                      <div className="text-[10px] text-slate-500">{parcel.village}</div>
+                      <ChevronRight className={`h-4 w-4 shrink-0 mt-1 transition-transform ${selectedParcel?.id === parcel.id ? 'text-emerald-600 translate-x-0.5' : 'text-slate-300 group-hover:text-slate-400'}`} />
                     </div>
-                    <ChevronRight className={`h-4 w-4 transition-transform ${selectedParcel?.id === parcel.id ? 'text-emerald-600 translate-x-0.5' : 'text-slate-400'}`} />
                   </button>
                 ))
               )}
@@ -808,22 +827,22 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Panel Tengah (Desktop) / Atas Layar (Mobile): Peta Spasial Leaflet */}
-        <div className="order-1 lg:order-2 lg:col-span-6 bg-white border border-slate-200/70 rounded-2xl p-2 h-[50vh] min-h-[380px] lg:h-[calc(100vh-140px)] lg:min-h-[620px] shadow-sm relative overflow-hidden flex flex-col">
-          <ParcelMap 
-            parcels={filteredParcels} 
-            selectedParcel={selectedParcel} 
-            onSelectParcel={setSelectedParcel} 
+        {/* Panel Tengah: Peta Spasial Leaflet */}
+        <div className="order-1 lg:order-2 lg:col-span-6 bg-white border border-slate-200/70 rounded-2xl p-1.5 h-[52vh] min-h-[360px] lg:h-[calc(100vh-130px)] lg:min-h-[600px] shadow-sm relative overflow-hidden">
+          <ParcelMap
+            parcels={filteredParcels}
+            selectedParcel={selectedParcel}
+            onSelectParcel={setSelectedParcel}
             isAdmin={isAdmin}
             onDeleteParcel={handleDeleteParcel}
           />
         </div>
 
-        {/* Panel Kanan (Desktop) / Paling Bawah (Mobile): Inspector Persil Dairi */}
-        <div className="order-3 lg:order-3 lg:col-span-3 flex flex-col gap-3 sm:gap-4">
-          <div className="bg-white border border-slate-200/70 rounded-2xl p-3.5 sm:p-4 md:p-5 flex flex-col shadow-xs">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3.5 sm:mb-4 flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-emerald-600" /> Inspector Persil Dairi
+        {/* Panel Kanan: Inspector Persil Dairi */}
+        <div className="order-3 lg:col-span-3 flex flex-col gap-3">
+          <div className="bg-white border border-slate-200/70 rounded-2xl p-3.5 sm:p-4 flex flex-col shadow-xs">
+            <h2 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Inspector Persil Dairi
             </h2>
 
             {loading ? (
