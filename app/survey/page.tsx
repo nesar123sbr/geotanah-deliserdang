@@ -39,7 +39,8 @@ interface PhotoItem {
   blob: Blob;
   previewUrl: string;
   sizeKb: number;
-  extension: 'webp';
+  extension: string;
+  mimeType: string;
 }
 
 const BUCKET = 'parcel-photos';
@@ -73,51 +74,72 @@ function createSurveyFolder(owner: string, nibVal: string): string {
 }
 
 /**
- * Kompresi foto secara client-side menggunakan browser-image-compression
- * Target maksimal 250 KB dan otomatis dikonversi ke format WebP
+ * Ekstrak ekstensi berkas asli secara aman
  */
-async function compressPhotoToWebp(file: File): Promise<{ blob: Blob; extension: 'webp'; sizeKb: number }> {
-  const isImage = file.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif|bmp|gif)$/i.test(file.name);
-  if (!isImage) {
-    throw new Error(`Berkas "${file.name}" bukan format gambar yang didukung.`);
+function getFileExtension(file: File): string {
+  const parts = file.name.split('.');
+  if (parts.length > 1) {
+    const ext = parts.pop()?.toLowerCase();
+    if (ext && ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'].includes(ext)) {
+      return ext === 'jpeg' ? 'jpg' : ext;
+    }
   }
-  if (file.size > 30 * 1024 * 1024) {
-    throw new Error('Ukuran foto asli melebihi 30 MB. Pilih foto dengan resolusi lebih kecil.');
-  }
+  if (file.type === 'image/png') return 'png';
+  if (file.type === 'image/webp') return 'webp';
+  return 'jpg';
+}
 
-  // Pastikan berkas memiliki MIME type yang dikenali library
-  const fileToCompress = file.type ? file : new File([file], file.name, { type: 'image/jpeg' });
+/**
+ * Kompresi foto secara client-side menggunakan browser-image-compression
+ * - Menjaga dimensi & rasio asli tanpa batasan kaku (maxWidthOrHeight dihapus)
+ * - Mempertahankan format & MIME type asli foto (fileType paksa WebP dihapus)
+ * - Opsi kompresi murni mengecilkan ukuran: { maxSizeMB: 0.5, useWebWorker: true }
+ * - Jika kompresi gagal, fallback menggunakan berkas asli agar tidak freeze/gagal upload
+ */
+async function compressPhoto(file: File): Promise<{ blob: Blob; extension: string; mimeType: string; sizeKb: number }> {
+  const originalExt = getFileExtension(file);
+  const originalMime = file.type || (originalExt === 'png' ? 'image/png' : originalExt === 'webp' ? 'image/webp' : 'image/jpeg');
 
-  // Konfigurasi browser-image-compression untuk konversi WebP otomatis
+  // Opsi kompresi murni untuk mengecilkan ukuran tanpa mengubah dimensi & format
   const options = {
-    maxSizeMB: 0.25, // Target <= 250 KB (0.25 MB)
-    maxWidthOrHeight: 1280, // Resolusi proporsional untuk dokumentasi kadastral
+    maxSizeMB: 0.5, // Target kompresi <= 0.5 MB (500 KB)
     useWebWorker: true,
-    fileType: 'image/webp',
-    initialQuality: 0.75,
   };
 
-  let compressedFile: File;
   try {
-    compressedFile = await imageCompression(fileToCompress, options);
+    let compressedFile: File;
+    try {
+      compressedFile = await imageCompression(file, options);
+    } catch (workerErr) {
+      console.warn('[compressPhoto] Web worker gagal/timeout, mencoba mode sinkron:', workerErr);
+      compressedFile = await imageCompression(file, { ...options, useWebWorker: false });
+    }
+
+    const effectiveMime = compressedFile.type || originalMime;
+    const effectiveExt = getFileExtension(compressedFile) || originalExt;
+    const sizeKb = Math.max(1, Math.round(compressedFile.size / 1024));
+
+    return {
+      blob: compressedFile,
+      extension: effectiveExt,
+      mimeType: effectiveMime,
+      sizeKb,
+    };
   } catch (err) {
-    console.warn('[compressPhotoToWebp] Web worker gagal/timeout, beralih ke mode sinkron:', err);
-    const fallbackOptions = { ...options, useWebWorker: false };
-    compressedFile = await imageCompression(fileToCompress, fallbackOptions);
+    console.error('[compressPhoto] Kompresi gagal, menggunakan berkas asli sebagai fallback:', err);
+    const fallbackSizeKb = Math.max(1, Math.round(file.size / 1024));
+    // Jika berkas asli masih dalam batas wajar (< 20 MB), gunakan langsung berkas aslinya
+    if (file.size > 20 * 1024 * 1024) {
+      throw new Error(`Ukuran foto terlalu besar (${fallbackSizeKb} KB > 20 MB). Pilih foto dengan resolusi lebih wajar.`);
+    }
+
+    return {
+      blob: file,
+      extension: originalExt,
+      mimeType: originalMime,
+      sizeKb: fallbackSizeKb,
+    };
   }
-
-  // Pastikan hasil akhir berupa WebP Blob
-  const finalBlob = compressedFile.type === 'image/webp'
-    ? compressedFile
-    : new Blob([compressedFile], { type: 'image/webp' });
-
-  const sizeKb = Math.max(1, Math.round(finalBlob.size / 1024));
-
-  return {
-    blob: finalBlob,
-    extension: 'webp',
-    sizeKb,
-  };
 }
 
 export default function SurveyPage() {
@@ -321,7 +343,7 @@ export default function SurveyPage() {
     setProcessing(true);
     setProblem('');
     setFeedback('');
-    const toastId = toast.loading('Mengompresi foto ke format WebP...');
+    const toastId = toast.loading('Mengompresi foto...');
 
     // 3. Jeda singkat (60ms) agar browser event loop merender loading state dan toast (mencegah UI freeze)
     await new Promise((r) => setTimeout(r, 60));
@@ -333,7 +355,7 @@ export default function SurveyPage() {
         if (filesToProcess.length > 1) {
           toast.loading(`Mengompresi foto ${i + 1} dari ${filesToProcess.length}...`, { id: toastId });
         }
-        const compressed = await compressPhotoToWebp(file);
+        const compressed = await compressPhoto(file);
         const previewUrl = URL.createObjectURL(compressed.blob);
         objectUrlsRef.current.add(previewUrl);
         newItems.push({
@@ -341,20 +363,22 @@ export default function SurveyPage() {
           blob: compressed.blob,
           previewUrl,
           sizeKb: compressed.sizeKb,
-          extension: 'webp',
+          extension: compressed.extension,
+          mimeType: compressed.mimeType,
         });
       }
 
       setPhotos((prev) => [...prev, ...newItems]);
       const totalKb = newItems.reduce((acc, p) => acc + p.sizeKb, 0);
       toast.success(
-        `${newItems.length} foto berhasil dikonversi ke WebP (${totalKb} KB)`,
+        `${newItems.length} foto berhasil diproses (${totalKb} KB)`,
         { id: toastId }
       );
     } catch (error) {
+      console.error('[handleAddPhotos] Error saat kompresi foto:', error);
       const msg = messageOf(error);
       setProblem(msg);
-      toast.error(`Gagal mengompresi foto: ${msg}`, { id: toastId });
+      toast.error(`Gagal memproses foto: ${msg}`, { id: toastId });
     } finally {
       setProcessing(false);
     }
@@ -399,7 +423,7 @@ export default function SurveyPage() {
     await new Promise((r) => setTimeout(r, 60));
 
     try {
-      const compressed = await compressPhotoToWebp(file);
+      const compressed = await compressPhoto(file);
       const newPreviewUrl = URL.createObjectURL(compressed.blob);
       objectUrlsRef.current.add(newPreviewUrl);
 
@@ -415,15 +439,17 @@ export default function SurveyPage() {
           blob: compressed.blob,
           previewUrl: newPreviewUrl,
           sizeKb: compressed.sizeKb,
-          extension: 'webp',
+          extension: compressed.extension,
+          mimeType: compressed.mimeType,
         };
         return next;
       });
       toast.success(
-        `Foto #${targetIndex + 1} berhasil diganti ke WebP (${compressed.sizeKb} KB)`,
+        `Foto #${targetIndex + 1} berhasil diganti (${compressed.sizeKb} KB, ${compressed.extension.toUpperCase()})`,
         { id: toastId }
       );
     } catch (err) {
+      console.error('[handleReplacePhotoFile] Error saat ganti foto:', err);
       const msg = messageOf(err);
       setProblem(`Gagal mengganti foto: ${msg}`);
       toast.error(`Gagal mengganti foto: ${msg}`, { id: toastId });
@@ -456,7 +482,7 @@ export default function SurveyPage() {
     try {
       const folderName = createSurveyFolder(ownerName, cleanNib);
 
-      // 1. Unggah semua foto WebP terkompresi ke folder [nama_pemilik]_[NIB]/photo_N.webp
+      // 1. Unggah semua foto terkompresi ke folder [nama_pemilik]_[NIB]/photo_N.[ext]
       for (let i = 0; i < photos.length; i++) {
         const p = photos[i];
         const photoPath = `${folderName}/photo_${i + 1}.${p.extension}`;
@@ -465,13 +491,14 @@ export default function SurveyPage() {
           photoPath,
           await p.blob.arrayBuffer(),
           {
-            contentType: p.blob.type,
+            contentType: p.mimeType || p.blob.type || 'image/jpeg',
             cacheControl: '31536000, immutable',
             upsert: true,
           }
         );
         
         if (uploadError) {
+          console.error(`[submitSurvey] Upload error foto #${i + 1}:`, uploadError);
           const detailMsg = `Gagal mengunggah foto #${i + 1} ke Storage (${uploadError.message}). Periksa koneksi dan RLS Storage.`;
           toast.error(detailMsg, { id: toastId });
           throw new Error(detailMsg);
@@ -512,8 +539,8 @@ export default function SurveyPage() {
         '----------------------------------------------------------------',
         'DOKUMENTASI FOTO LAPANGAN',
         '----------------------------------------------------------------',
-        `Total Berkas Foto WebP          : ${photos.length} berkas`,
-        ...photos.map((p, idx) => `  - Foto #${idx + 1} : photo_${idx + 1}.${p.extension} (${p.sizeKb} KB)`),
+        `Total Berkas Foto               : ${photos.length} berkas`,
+        ...photos.map((p, idx) => `  - Foto #${idx + 1} : photo_${idx + 1}.${p.extension} (${p.sizeKb} KB, ${p.mimeType})`),
         '',
         '================================================================',
       ].join('\r\n');
@@ -723,7 +750,7 @@ export default function SurveyPage() {
           <CardTitle className="text-sm sm:text-base font-semibold text-slate-900 flex items-center justify-between">
             <span>3. Dokumentasi Foto ({photos.length}/{MAX_PHOTOS})</span>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-              WebP &le;250 KB
+              Maks. 500 KB
             </span>
           </CardTitle>
         </CardHeader>
@@ -739,7 +766,7 @@ export default function SurveyPage() {
               {processing ? (
                 <>
                   <LoaderCircle className="h-4 w-4 animate-spin text-emerald-700" />
-                  <span>Mengompresi ke WebP...</span>
+                  <span>Mengompresi foto...</span>
                 </>
               ) : (
                 <>
@@ -776,7 +803,7 @@ export default function SurveyPage() {
                       <X className="h-3 w-3" />
                     </button>
                     <span className="absolute bottom-1 left-1 px-1.5 py-0.2 rounded bg-black/70 text-white text-[9px] font-mono">
-                      {item.sizeKb} KB
+                      {item.sizeKb} KB · {item.extension.toUpperCase()}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-1">
