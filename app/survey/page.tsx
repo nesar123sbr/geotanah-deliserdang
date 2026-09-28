@@ -5,9 +5,11 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { 
   ArrowLeft, Camera, CheckCircle2, LocateFixed, LoaderCircle, 
-  FileUp, AlertCircle, Trash2, RefreshCw, X, ChevronUp, FileText
+  FileUp, AlertCircle, Trash2, RefreshCw, X, ChevronUp, FileText,
+  Download, Package, NotebookPen, UserCheck
 } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
+import { zipSync, strToU8 } from 'fflate';
 import { supabase, type ProgramType } from '@/lib/supabase';
 import type { SurveyPolygonResult } from '@/components/SurveyDrawMap';
 import { parseGeoFile, formatAreaM2 } from '@/lib/parseGeoFile';
@@ -44,7 +46,7 @@ interface PhotoItem {
 }
 
 const BUCKET = 'parcel-photos';
-const MAX_PHOTOS = 3;
+const MAX_PHOTOS = 7;
 const buttonClass = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-200 hover:opacity-90 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2';
 
 function messageOf(error: unknown): string {
@@ -60,7 +62,7 @@ function validGps({ lat, lng, accuracy }: GpsFix): boolean {
     && Number.isFinite(accuracy) && accuracy >= 0 && accuracy <= 1000;
 }
 
-function createSurveyFolder(owner: string, nibVal: string): string {
+function createSurveyFolder(owner: string, nibVal: string, surveyorVal?: string): string {
   const sanitize = (str: string) =>
     str
       .trim()
@@ -70,7 +72,8 @@ function createSurveyFolder(owner: string, nibVal: string): string {
 
   const cleanOwner = sanitize(owner) || 'Tanpa_Nama';
   const cleanNib = sanitize(nibVal) || 'Tanpa_NIB';
-  return `${cleanOwner}_${cleanNib}`;
+  const cleanSurveyor = surveyorVal ? `_${sanitize(surveyorVal)}` : '';
+  return `${cleanOwner}_${cleanNib}${cleanSurveyor}`;
 }
 
 /**
@@ -142,10 +145,93 @@ async function compressPhoto(file: File): Promise<{ blob: Blob; extension: strin
   }
 }
 
+// ─── Geo Export Helpers ──────────────────────────────────────────────────────
+
+/**
+ * Build KML string dari titik-titik poligon
+ */
+function buildKML(points: [number, number][], name: string): string {
+  const coords = points.map(([lat, lng]) => `${lng},${lat},0`).join('\n          ');
+  const first = points[0];
+  const closingCoord = first ? `${first[1]},${first[0]},0` : '';
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Placemark>
+    <name>${name}</name>
+    <Polygon>
+      <outerBoundaryIs>
+        <LinearRing>
+          <coordinates>
+          ${coords}
+          ${closingCoord}
+          </coordinates>
+        </LinearRing>
+      </outerBoundaryIs>
+    </Polygon>
+  </Placemark>
+</kml>`;
+}
+
+/**
+ * Build GPX string dari titik-titik poligon (sebagai waypoints & track)
+ */
+function buildGPX(points: [number, number][], name: string): string {
+  const wpts = points.map(([lat, lng], i) =>
+    `  <wpt lat="${lat.toFixed(7)}" lon="${lng.toFixed(7)}"><name>P${i + 1}</name></wpt>`
+  ).join('\n');
+  const trkpts = points.map(([lat, lng]) =>
+    `      <trkpt lat="${lat.toFixed(7)}" lon="${lng.toFixed(7)}"/>`
+  ).join('\n');
+  const now = new Date().toISOString();
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="GeoTanah Dairi" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata><name>${name}</name><time>${now}</time></metadata>
+${wpts}
+  <trk>
+    <name>${name}</name>
+    <trkseg>
+${trkpts}
+    </trkseg>
+  </trk>
+</gpx>`;
+}
+
+/**
+ * Build CSV patok batas (format AutoCAD-friendly: NO, LAT, LNG, DESC)
+ */
+function buildCSV(points: [number, number][], name: string): string {
+  const header = 'NO,LATITUDE,LONGITUDE,DESKRIPSI';
+  const rows = points.map(([lat, lng], i) =>
+    `${i + 1},${lat.toFixed(7)},${lng.toFixed(7)},Patok_${i + 1}_${name}`
+  );
+  return [header, ...rows].join('\r\n');
+}
+
+/**
+ * Build GeoJSON FeatureCollection dari polygon points
+ */
+function buildGeoJSON(points: [number, number][], name: string, props: Record<string, unknown>): string {
+  // GeoJSON koordinat: [lng, lat]
+  const coordinates = [
+    [...points.map(([lat, lng]) => [lng, lat]), [points[0][1], points[0][0]]],
+  ];
+  const feature = {
+    type: 'FeatureCollection',
+    features: [{
+      type: 'Feature',
+      geometry: { type: 'Polygon', coordinates },
+      properties: { name, ...props },
+    }],
+  };
+  return JSON.stringify(feature, null, 2);
+}
+
 export default function SurveyPage() {
   const [nib, setNib] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [address, setAddress] = useState('');
+  const [surveyorName, setSurveyorName] = useState('');
+  const [notes, setNotes] = useState('');
   const [gps, setGps] = useState<GpsFix | null>(null);
   const [locating, setLocating] = useState(false);
   const [programType, setProgramType] = useState<ProgramType>('Reguler');
@@ -153,7 +239,7 @@ export default function SurveyPage() {
   // Sesi pengguna terdeteksi (opsional untuk metadata surveyor)
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
-  // Multi-photo state (hingga 3 foto)
+  // Multi-photo state (hingga 7 foto)
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [savedPhotos, setSavedPhotos] = useState<string[]>([]);
   const [savedFolder, setSavedFolder] = useState<string>('');
@@ -464,11 +550,18 @@ export default function SurveyPage() {
 
     const hasPolygon = Boolean(surveyPolygon.geojson && surveyPolygon.points.length >= 3);
     const hasCoordinates = (gps && validGps(gps)) || (hasPolygon && surveyPolygon.centroid);
+    const cleanSurveyor = surveyorName.trim();
 
     if (cleanNib.length < 3 || !hasCoordinates || photos.length === 0) {
       const validationMsg = 'Lengkapi NIB (minimal 3 karakter), tentukan koordinat (ambil GPS atau delineasi poligon), dan ambil minimal 1 foto dokumentasi.';
       setProblem(validationMsg);
       toast.error(validationMsg);
+      return;
+    }
+    if (!cleanSurveyor) {
+      const msg = 'Nama Surveyor wajib diisi.';
+      setProblem(msg);
+      toast.error(msg);
       return;
     }
 
@@ -480,9 +573,9 @@ export default function SurveyPage() {
 
     const uploadedPaths: string[] = [];
     try {
-      const folderName = createSurveyFolder(ownerName, cleanNib);
+      const folderName = createSurveyFolder(ownerName, cleanNib, cleanSurveyor);
 
-      // 1. Unggah semua foto terkompresi ke folder [nama_pemilik]_[NIB]/photo_N.[ext]
+      // 1. Unggah semua foto terkompresi ke folder [nama_pemilik]_[NIB]_[surveyor]/photo_N.[ext]
       for (let i = 0; i < photos.length; i++) {
         const p = photos[i];
         const photoPath = `${folderName}/photo_${i + 1}.${p.extension}`;
@@ -524,9 +617,11 @@ export default function SurveyPage() {
         `NIB (Nomor Identifikasi Bidang) : ${cleanNib}`,
         `Nama Pemilik                    : ${ownerName.trim() || 'Tidak Disebutkan'}`,
         `Alamat / Dusun / RT-RW          : ${address.trim() || 'Tidak Disebutkan'}`,
-        `Klasifikasi Program             : ${programType}`,
+        `Klasifikasi Program / MBR       : ${programType}`,
+        `Nama Surveyor Lapangan          : ${cleanSurveyor}`,
+        `Akun Pengunggah                 : ${currentUserEmail || 'Anonim / Belum Login'}`,
         `Waktu Perekaman                 : ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB`,
-        `Surveyor Pengunggah             : ${currentUserEmail || 'Anonim / Belum Login'}`,
+        ...(notes.trim() ? ['', `Catatan Tambahan                : ${notes.trim()}`] : []),
         '',
         '----------------------------------------------------------------',
         'KOORDINAT & SPASIAL',
@@ -592,6 +687,8 @@ export default function SurveyPage() {
         setNib('');
         setOwnerName('');
         setAddress('');
+        setSurveyorName('');
+        setNotes('');
         setSurveyPolygon({
           geojson: null,
           areaM2: null,
@@ -620,6 +717,73 @@ export default function SurveyPage() {
     }
   }
 
+  /**
+   * Export ZIP bundle: GeoJSON + KML + GPX + CSV + semua foto
+   * Folder name: [Nama_Pemilik]_[NIB]_[Nama_Surveyor]
+   */
+  async function handleExportZip() {
+    const hasPolygon = surveyPolygon.points.length >= 3;
+    if (!hasPolygon) {
+      toast.error('Poligon batas minimal 3 patok diperlukan untuk ekspor bundle.');
+      return;
+    }
+
+    const toastId = toast.loading('Menyiapkan bundle ZIP...');
+    try {
+      const folderName = createSurveyFolder(ownerName, cleanNib, surveyorName.trim());
+      const pts = surveyPolygon.points as [number, number][];
+      const geoProps: Record<string, unknown> = {
+        nib: cleanNib,
+        owner_name: ownerName.trim() || null,
+        address: address.trim() || null,
+        program_type: programType,
+        surveyor_name: surveyorName.trim() || null,
+        notes: notes.trim() || null,
+        area_m2: surveyPolygon.areaM2 ?? null,
+        exported_at: new Date().toISOString(),
+      };
+
+      const geojsonStr = buildGeoJSON(pts, folderName, geoProps);
+      const kmlStr = buildKML(pts, folderName);
+      const gpxStr = buildGPX(pts, folderName);
+      const csvStr = buildCSV(pts, folderName);
+
+      // Kumpulkan file ke dalam objek zipSync
+      const zipFiles: Record<string, Uint8Array> = {
+        [`${folderName}/data.geojson`]: strToU8(geojsonStr),
+        [`${folderName}/data.kml`]: strToU8(kmlStr),
+        [`${folderName}/data.gpx`]: strToU8(gpxStr),
+        [`${folderName}/data.csv`]: strToU8(csvStr),
+      };
+
+      // Tambahkan semua foto ke dalam sub-folder photos/
+      for (let i = 0; i < photos.length; i++) {
+        const p = photos[i];
+        const arr = new Uint8Array(await p.blob.arrayBuffer());
+        zipFiles[`${folderName}/photos/photo_${i + 1}.${p.extension}`] = arr;
+      }
+
+      const zipped = zipSync(zipFiles, { level: 6 });
+      const blob = new Blob([zipped], { type: 'application/zip' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${folderName}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+      toast.success(
+        `Bundle ZIP berhasil diunduh: ${folderName}.zip (GeoJSON, KML, GPX, CSV + ${photos.length} foto)`,
+        { id: toastId, duration: 6000 }
+      );
+    } catch (err) {
+      console.error('[handleExportZip]', err);
+      toast.error(`Gagal membuat bundle ZIP: ${messageOf(err)}`, { id: toastId });
+    }
+  }
+
   // Render Form Input Data Tanah (Reused across Mobile Sheet & Desktop Sidebar)
   const renderFormContent = () => (
     <form onSubmit={submitSurvey} className="space-y-4" aria-busy={submitting}>
@@ -627,7 +791,7 @@ export default function SurveyPage() {
       <Card className="border-slate-200/90 shadow-xs">
         <CardHeader className="pb-3 pt-4 px-4 sm:px-5">
           <CardTitle className="text-sm sm:text-base font-semibold text-slate-900 flex items-center justify-between">
-            <span>1. Identifikasi Bidang & Pemilik</span>
+            <span>1. Identifikasi Bidang &amp; Pemilik</span>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
               Wajib
             </span>
@@ -685,9 +849,28 @@ export default function SurveyPage() {
             </div>
           </div>
 
-          <div className="space-y-1 pt-1">
+          {/* ── BARU: Nama Surveyor (Wajib) ── */}
+          <div className="space-y-1 pt-0.5">
+            <label htmlFor="survey-surveyor" className="block text-xs font-medium text-slate-700 flex items-center gap-1">
+              <UserCheck className="h-3 w-3 text-emerald-600" />
+              Nama Surveyor *
+            </label>
+            <input
+              id="survey-surveyor"
+              type="text"
+              value={surveyorName}
+              disabled={busy}
+              onChange={(e) => setSurveyorName(e.target.value)}
+              placeholder="Nama petugas lapangan..."
+              required
+              className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all disabled:bg-slate-100 disabled:opacity-60"
+            />
+          </div>
+
+          {/* ── BARU: Klasifikasi MBR (Dropdown, opsional) ── */}
+          <div className="space-y-1 pt-0.5">
             <label htmlFor="survey-program" className="block text-xs font-medium text-slate-700">
-              Klasifikasi Program
+              Klasifikasi MBR / Program
             </label>
             <select
               id="survey-program"
@@ -696,12 +879,30 @@ export default function SurveyPage() {
               onChange={(e) => setProgramType(e.target.value as ProgramType)}
               className="min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-xs sm:text-sm text-slate-900 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all disabled:bg-slate-100 disabled:opacity-60 cursor-pointer"
             >
-              <option value="Reguler">📋 Reguler (Rutin / Non-Target Khusus)</option>
+              <option value="Reguler">📋 Bersedia (Reguler)</option>
+              <option value="MBR">🏠 MBR (Masyarakat Berpenghasilan Rendah)</option>
               <option value="Wakaf">🕌 Wakaf (Tanah Wakaf Keagamaan)</option>
               <option value="Rumah Ibadah">🏛️ Rumah Ibadah (Gereja, Masjid, dll)</option>
-              <option value="MBR">🏠 MBR (Masyarakat Berpenghasilan Rendah)</option>
               <option value="Hibah">🎁 Hibah (Pemerintah/Masyarakat)</option>
             </select>
+          </div>
+
+          {/* ── BARU: Catatan Tambahan (Textarea, opsional) ── */}
+          <div className="space-y-1 pt-0.5">
+            <label htmlFor="survey-notes" className="block text-xs font-medium text-slate-700 flex items-center gap-1">
+              <NotebookPen className="h-3 w-3 text-slate-500" />
+              Catatan Tambahan
+              <span className="text-slate-400 font-normal">(opsional)</span>
+            </label>
+            <textarea
+              id="survey-notes"
+              value={notes}
+              disabled={busy}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Kondisi khusus bidang, hambatan akses, catatan tim..."
+              rows={3}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all disabled:bg-slate-100 disabled:opacity-60 resize-none"
+            />
           </div>
         </CardContent>
       </Card>
@@ -750,12 +951,12 @@ export default function SurveyPage() {
           <CardTitle className="text-sm sm:text-base font-semibold text-slate-900 flex items-center justify-between">
             <span>3. Dokumentasi Foto ({photos.length}/{MAX_PHOTOS})</span>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-              Maks. 500 KB
+              Maks. 500 KB/foto
             </span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 px-4 sm:px-5 pb-4">
-          {/* Tombol Ambil Foto jika < 3 */}
+          {/* Tombol Ambil Foto jika < MAX_PHOTOS */}
           {photos.length < MAX_PHOTOS && (
             <button
               type="button"
@@ -781,53 +982,76 @@ export default function SurveyPage() {
             </button>
           )}
 
-          {/* Grid Preview Foto */}
+          {/* Preview: thumbnail foto pertama + badge count */}
           {photos.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
-              {photos.map((item, idx) => (
-                <div key={item.id} className="relative rounded-xl border border-slate-200 bg-slate-50 p-1.5 space-y-1">
-                  <div className="relative aspect-square w-full rounded-lg overflow-hidden bg-slate-200">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={item.previewUrl}
-                      alt={`Foto ${idx + 1}`}
-                      className="w-full h-full object-cover"
-                    />
+            <div className="flex items-center gap-3 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+              {/* Thumbnail foto pertama */}
+              <div className="relative h-16 w-16 shrink-0 rounded-lg overflow-hidden bg-slate-200 border border-slate-200">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photos[0].previewUrl}
+                  alt="Pratinjau foto pertama"
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => handleRemovePhoto(0)}
+                  title="Hapus foto pertama"
+                  className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center shadow-md cursor-pointer"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </div>
+
+              {/* Deskripsi & badge */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-semibold border border-emerald-200">
+                    {photos.length} dari {MAX_PHOTOS} foto dipilih
+                  </span>
+                  {photos.length < MAX_PHOTOS && (
                     <button
                       type="button"
                       disabled={busy}
-                      onClick={() => handleRemovePhoto(idx)}
-                      title="Hapus foto ini"
-                      className="absolute top-1 right-1 h-5 w-5 rounded-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center text-xs shadow-md cursor-pointer"
+                      onClick={() => photoInputRef.current?.click()}
+                      className="text-[10px] text-emerald-700 font-medium hover:underline cursor-pointer"
                     >
-                      <X className="h-3 w-3" />
+                      + Tambah lagi
                     </button>
-                    <span className="absolute bottom-1 left-1 px-1.5 py-0.2 rounded bg-black/70 text-white text-[9px] font-mono">
-                      {item.sizeKb} KB · {item.extension.toUpperCase()}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-1">
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => triggerReplacePhoto(idx)}
-                      className="py-1 px-1 rounded bg-blue-50 text-blue-700 text-[10px] font-medium hover:bg-blue-100 flex items-center justify-center cursor-pointer"
-                      title="Ganti foto"
-                    >
-                      <RefreshCw className="h-3 w-3" />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => handleRemovePhoto(idx)}
-                      className="py-1 px-1 rounded bg-rose-50 text-rose-700 text-[10px] font-medium hover:bg-rose-100 flex items-center justify-center cursor-pointer"
-                      title="Hapus foto"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
+                  )}
                 </div>
-              ))}
+                <p className="text-[10px] text-slate-500 mt-1 truncate">
+                  {photos[0].sizeKb} KB · {photos[0].extension.toUpperCase()}
+                  {photos.length > 1 && ` + ${photos.length - 1} foto lainnya`}
+                </p>
+                {/* Tombol hapus / ganti per foto (scrollable chips) */}
+                <div className="flex gap-1 mt-1.5 flex-wrap">
+                  {photos.map((p, idx) => (
+                    <div key={p.id} className="inline-flex items-center gap-0.5 bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[9px] font-mono text-slate-600">
+                      <span>#{idx + 1}</span>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => triggerReplacePhoto(idx)}
+                        title={`Ganti foto #${idx + 1}`}
+                        className="text-blue-600 hover:text-blue-800 cursor-pointer"
+                      >
+                        <RefreshCw className="h-2.5 w-2.5" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => handleRemovePhoto(idx)}
+                        title={`Hapus foto #${idx + 1}`}
+                        className="text-rose-600 hover:text-rose-800 cursor-pointer"
+                      >
+                        <Trash2 className="h-2.5 w-2.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
@@ -892,7 +1116,7 @@ export default function SurveyPage() {
       {/* Submit Button */}
       <button 
         type="submit" 
-        disabled={cleanNib.length < 3 || (!gps && !(surveyPolygon.geojson && surveyPolygon.points.length >= 3)) || photos.length === 0 || busy}
+        disabled={cleanNib.length < 3 || (!gps && !(surveyPolygon.geojson && surveyPolygon.points.length >= 3)) || photos.length === 0 || busy || !surveyorName.trim()}
         className={`${buttonClass} w-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-950/20 py-3.5 text-sm cursor-pointer`}
       >
         {submitting ? (
@@ -906,6 +1130,23 @@ export default function SurveyPage() {
             <span>Simpan Data Survei Lapangan</span>
           </>
         )}
+      </button>
+
+      {/* ZIP Bundle Export Button */}
+      <button
+        type="button"
+        disabled={surveyPolygon.points.length < 3 || busy}
+        onClick={handleExportZip}
+        title={surveyPolygon.points.length < 3 ? 'Tersedia setelah poligon batas minimal 3 patok dibuat' : 'Unduh bundle GeoJSON + KML + GPX + CSV + Foto dalam satu ZIP'}
+        className={`${buttonClass} w-full bg-slate-700 hover:bg-slate-600 disabled:bg-slate-300 text-white py-3 text-sm cursor-pointer`}
+      >
+        <Package className="h-4 w-4" />
+        <span>
+          {surveyPolygon.points.length < 3
+            ? 'Export Bundle ZIP (Butuh Poligon)'
+            : `Export Bundle ZIP (GeoJSON, KML, GPX, CSV${photos.length > 0 ? ` + ${photos.length} Foto` : ''})`}
+        </span>
+        <Download className="h-4 w-4 opacity-70" />
       </button>
 
       {/* Saved Photos History */}
@@ -1033,7 +1274,7 @@ export default function SurveyPage() {
                   {cleanNib ? `NIB: ${cleanNib}` : 'Formulir Data Bidang Tanah'}
                 </div>
                 <div className="text-[11px] text-slate-500 truncate">
-                  {photos.length > 0 ? `${photos.length}/3 Foto` : 'Belum ada foto'} · {gps ? 'GPS ✓' : 'Belum GPS'} · {surveyPolygon.points.length > 0 ? `${surveyPolygon.points.length} patok` : 'Belum ada patok'}
+                  {photos.length > 0 ? `${photos.length}/${MAX_PHOTOS} Foto` : 'Belum ada foto'} · {gps ? 'GPS ✓' : 'Belum GPS'} · {surveyPolygon.points.length > 0 ? `${surveyPolygon.points.length} patok` : 'Belum ada patok'}
                 </div>
               </div>
             </div>
