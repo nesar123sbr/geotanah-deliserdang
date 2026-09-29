@@ -427,4 +427,163 @@
   .leaflet-popup-tip {
     box-shadow: none !important;
   }
+
+  /* ── Premium Elevation System ───────────────────────────────────────── */
+  .elevation-0 {
+    box-shadow: 0 0 0 1px oklch(0.91 0.01 240 / 80%);
+  }
+  .elevation-1 {
+    box-shadow:
+      0 1px 3px oklch(0.1 0.02 240 / 8%),
+      0 4px 12px oklch(0.1 0.02 240 / 5%);
+  }
+  .elevation-2 {
+    box-shadow:
+      0 2px 8px oklch(0.1 0.02 240 / 10%),
+      0 8px 24px oklch(0.1 0.02 240 / 7%),
+      0 1px 3px oklch(0.1 0.02 240 / 6%);
+  }
+  .elevation-3 {
+    box-shadow:
+      0 4px 16px oklch(0.1 0.02 240 / 14%),
+      0 16px 48px oklch(0.1 0.02 240 / 10%),
+      0 1px 4px oklch(0.1 0.02 240 / 8%);
+  }
+
+  /* ── Floating dock — enhanced depth ────────────────────────────────── */
+  .floating-dock {
+    background: oklch(1 0 0 / 85%);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    border: 1px solid oklch(1 0 0 / 60%);
+    box-shadow:
+      0 2px 8px oklch(0.1 0.02 240 / 10%),
+      0 8px 32px oklch(0.1 0.02 240 / 18%),
+      0 24px 64px oklch(0.1 0.02 240 / 12%),
+      inset 0 1px 0 oklch(1 0 0 / 90%);
+  }
+
+  /* ── Map container ring ─────────────────────────────────────────────── */
+  .map-container-ring {
+    border-radius: 16px;
+    box-shadow:
+      0 0 0 1px oklch(0.91 0.01 240),
+      0 4px 24px oklch(0.1 0.02 240 / 10%);
+    overflow: hidden;
+  }
+
+  /* ── Inspector section block ─────────────────────────────────────────── */
+  .inspector-section {
+    background: oklch(0.978 0.004 240);
+    border-radius: 14px;
+    border: 1px solid oklch(0.91 0.01 240 / 80%);
+    padding: 0.875rem;
+  }
+
+  /* ── Status chip utilities ───────────────────────────────────────────── */
+  .chip-status-ok {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    background: oklch(0.97 0.03 157);
+    color: oklch(0.34 0.11 157);
+    border: 1px solid oklch(0.86 0.07 157);
+  }
+  .chip-status-warn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    background: oklch(0.97 0.04 80);
+    color: oklch(0.38 0.14 80);
+    border: 1px solid oklch(0.86 0.1 80);
+  }
+  .chip-status-err {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    background: oklch(0.97 0.025 15);
+    color: oklch(0.38 0.16 15);
+    border: 1px solid oklch(0.86 0.07 15);
+  }
+
+  /* ── Live Indicator — orbital glow pulse ────────────────────────────── */
+  @keyframes indicatorPulse {
+    0%   { transform: scale(1); opacity: 0.8; }
+    70%  { transform: scale(2.4); opacity: 0; }
+    100% { transform: scale(2.4); opacity: 0; }
+  }
+  .indicator-live {
+    position: relative;
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: oklch(0.72 0.145 157);
+    flex-shrink: 0;
+  }
+  .indicator-live::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: oklch(0.72 0.145 157);
+    animation: indicatorPulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* ── KPI card enhancement ────────────────────────────────────────────── */
+  .kpi-emerald {
+    background: linear-gradient(145deg,
+      oklch(0.96 0.035 157) 0%,
+      oklch(0.99 0.01 160) 100%);
+    border-color: oklch(0.84 0.08 157);
+    box-shadow:
+      0 1px 3px oklch(0.42 0.12 157 / 10%),
+      0 4px 12px oklch(0.42 0.12 157 / 6%),
+      inset 0 1px 0 oklch(1 0 0 / 60%);
+  }
+  .kpi-amber {
+    background: linear-gradient(145deg,
+      oklch(0.96 0.05 80) 0%,
+      oklch(0.99 0.02 85) 100%);
+    border-color: oklch(0.84 0.11 80);
+    box-shadow:
+      0 1px 3px oklch(0.6 0.16 80 / 10%),
+      0 4px 12px oklch(0.6 0.16 80 / 6%),
+      inset 0 1px 0 oklch(1 0 0 / 60%);
+  }
+  .kpi-rose {
+    background: linear-gradient(145deg,
+      oklch(0.97 0.028 15) 0%,
+      oklch(0.99 0.012 20) 100%);
+    border-color: oklch(0.84 0.08 15);
+    box-shadow:
+      0 1px 3px oklch(0.6 0.22 15 / 10%),
+      0 4px 12px oklch(0.6 0.22 15 / 6%),
+      inset 0 1px 0 oklch(1 0 0 / 60%);
+  }
+  .kpi-slate {
+    background: linear-gradient(145deg,
+      oklch(0.985 0.005 240) 0%,
+      oklch(1 0 0) 100%);
+    border-color: oklch(0.91 0.01 240);
+    box-shadow:
+      0 1px 3px oklch(0.1 0.02 240 / 8%),
+      0 4px 12px oklch(0.1 0.02 240 / 4%),
+      inset 0 1px 0 oklch(1 0 0 / 80%);
+  }
 }

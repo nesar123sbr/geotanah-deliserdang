@@ -605,7 +605,7 @@ export default function Dashboard() {
 
             {/* Live Status — desktop only */}
             <div className="hidden xl:flex items-center gap-1.5 bg-emerald-600/15 border border-emerald-500/25 px-2.5 py-1.5 rounded-lg text-[10px] text-emerald-400 font-medium">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="indicator-live" />
               <span>Live · Kantah Dairi</span>
             </div>
           </div>
@@ -679,7 +679,7 @@ export default function Dashboard() {
           )}
 
           {/* ── Daftar Persil Panel ──────────────────────────────────────── */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-4 shadow-xs flex-1 flex flex-col min-h-[380px] lg:min-h-0">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-4 elevation-1 flex-1 flex flex-col min-h-[380px] lg:min-h-0">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                 <Layers className="h-3.5 w-3.5 text-emerald-600" /> Daftar Persil
@@ -828,7 +828,7 @@ export default function Dashboard() {
         </div>
 
         {/* Panel Tengah: Peta Spasial Leaflet */}
-        <div className="order-1 lg:order-2 lg:col-span-6 bg-white border border-slate-200/70 rounded-2xl p-1.5 h-[52vh] min-h-[360px] lg:h-[calc(100vh-130px)] lg:min-h-[600px] shadow-sm relative overflow-hidden">
+        <div className="order-1 lg:order-2 lg:col-span-6 bg-white border border-slate-200/70 rounded-2xl p-1.5 h-[52vh] min-h-[360px] lg:h-[calc(100vh-130px)] lg:min-h-[600px] elevation-2 relative overflow-hidden">
           <ParcelMap
             parcels={filteredParcels}
             selectedParcel={selectedParcel}
@@ -840,7 +840,7 @@ export default function Dashboard() {
 
         {/* Panel Kanan: Inspector Persil Dairi */}
         <div className="order-3 lg:col-span-3 flex flex-col gap-3">
-          <div className="bg-white border border-slate-200/70 rounded-2xl p-3.5 sm:p-4 flex flex-col shadow-xs">
+          <div className="bg-white border border-slate-200/70 rounded-2xl p-3.5 sm:p-4 flex flex-col elevation-1">
             <h2 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-1.5">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Inspector Persil Dairi
             </h2>
@@ -868,11 +868,13 @@ export default function Dashboard() {
 
                   if (isConflict) {
                     return (
-                      <div className="p-3.5 rounded-xl border flex items-center gap-3 bg-rose-50 border-rose-200 text-rose-900 shadow-xs">
-                        <AlertTriangle className="h-5 w-5 shrink-0 text-rose-600" />
+                      <div className="p-3.5 rounded-2xl border flex items-center gap-3 bg-rose-50 border-rose-200/80 text-rose-900 shadow-xs">
+                        <div className="h-9 w-9 rounded-xl bg-rose-100 border border-rose-200 flex items-center justify-center shrink-0">
+                          <AlertTriangle className="h-4 w-4 text-rose-600" />
+                        </div>
                         <div>
-                          <div className="font-bold text-xs sm:text-sm">Indikasi Tumpang Tindih</div>
-                          <div className="text-[11px] opacity-80">Irisan area terdeteksi dengan persil lain</div>
+                          <div className="font-bold text-xs">Indikasi Tumpang Tindih</div>
+                          <div className="text-[10px] text-rose-700 mt-0.5">Irisan area terdeteksi dengan persil lain</div>
                         </div>
                       </div>
                     );
@@ -880,22 +882,26 @@ export default function Dashboard() {
 
                   if (isWarning) {
                     return (
-                      <div className="p-3.5 rounded-xl border flex items-center gap-3 bg-amber-50 border-amber-200 text-amber-900 shadow-xs">
-                        <HelpCircle className="h-5 w-5 shrink-0 text-amber-600" />
+                      <div className="p-3.5 rounded-2xl border flex items-center gap-3 bg-amber-50 border-amber-200/80 text-amber-900 shadow-xs">
+                        <div className="h-9 w-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
+                          <HelpCircle className="h-4 w-4 text-amber-600" />
+                        </div>
                         <div>
-                          <div className="font-bold text-xs sm:text-sm">Perlu Verifikasi Lapangan</div>
-                          <div className="text-[11px] opacity-80">Deviasi &gt; 2% / Geometri indikatif</div>
+                          <div className="font-bold text-xs">Perlu Verifikasi Lapangan</div>
+                          <div className="text-[10px] text-amber-700 mt-0.5">Deviasi &gt; 2% / Geometri indikatif</div>
                         </div>
                       </div>
                     );
                   }
 
                   return (
-                    <div className="p-3.5 rounded-xl border flex items-center gap-3 bg-emerald-50 border-emerald-200 text-emerald-900 shadow-xs">
-                      <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+                    <div className="p-3.5 rounded-2xl border flex items-center gap-3 bg-emerald-50 border-emerald-200/80 text-emerald-900 shadow-xs">
+                      <div className="h-9 w-9 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      </div>
                       <div>
-                        <div className="font-bold text-xs sm:text-sm">Lolos Cek Teknis Demo</div>
-                        <div className="text-[11px] opacity-80">Topologi bersih & deviasi wajar</div>
+                        <div className="font-bold text-xs">Lolos Cek Teknis Demo</div>
+                        <div className="text-[10px] text-emerald-700 mt-0.5">Topologi bersih & deviasi wajar</div>
                       </div>
                     </div>
                   );
@@ -924,77 +930,75 @@ export default function Dashboard() {
                 </div>
 
                 {/* Chunk 1: Informasi Identitas Bidang */}
-                <div className="bg-slate-50/80 rounded-xl p-3 sm:p-3.5 border border-slate-200/80 space-y-2 font-mono text-[11px] sm:text-xs">
-                  <div className="flex justify-between pb-1.5 border-b border-slate-200/70">
-                    <span className="text-slate-500 font-sans text-xs">NIB</span>
-                    <span className="text-slate-900 font-bold">{selectedParcel.nib}</span>
+                <dl className="inspector-section space-y-0 font-mono text-[11px]">
+                  <div className="data-row">
+                    <dt>NIB</dt>
+                    <dd>{selectedParcel.nib}</dd>
                   </div>
-                  <div className="flex justify-between pb-1.5 border-b border-slate-200/70">
-                    <span className="text-slate-500 font-sans text-xs">Program Sensus</span>
-                    <span className="text-slate-800 font-sans flex items-center gap-1.5">
+                  <div className="data-row">
+                    <dt>Program Sensus</dt>
+                    <dd className="font-sans flex items-center gap-1.5">
                       <span>{PROGRAM_CONFIG[selectedParcel.program_type || 'Reguler']?.icon || '📋'}</span>
-                      <span className="font-semibold text-xs">{selectedParcel.program_type || 'Reguler'}</span>
-                    </span>
+                      <span className="font-semibold">{selectedParcel.program_type || 'Reguler'}</span>
+                    </dd>
                   </div>
-                  <div className="flex justify-between pb-1.5 border-b border-slate-200/70">
-                    <span className="text-slate-500 font-sans text-xs">Pemilik</span>
-                    <span className="text-slate-800 font-sans font-medium">{selectedParcel.owner_name}</span>
+                  <div className="data-row">
+                    <dt>Pemilik</dt>
+                    <dd className="font-sans font-medium">{selectedParcel.owner_name}</dd>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 font-sans text-xs">Desa</span>
-                    <span className="text-slate-800 font-sans">{selectedParcel.village}</span>
+                  <div className="data-row" style={{ borderBottom: 'none' }}>
+                    <dt>Desa</dt>
+                    <dd className="font-sans">{selectedParcel.village}</dd>
                   </div>
-                </div>
+                </dl>
 
                 {/* Chunk 2: Kalkulasi Luas */}
-                <div className="bg-slate-50/80 rounded-xl p-3 sm:p-3.5 border border-slate-200/80 space-y-2">
-                  <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 block uppercase tracking-wider">
-                    Kalkulasi Luas (Meter²)
-                  </span>
-                  <div className="flex justify-between text-xs sm:text-sm">
-                    <span className="text-slate-500">Surat Dokumen:</span>
-                    <span className="font-mono text-slate-800">
-                      {Number(selectedParcel.legal_area_m2) <= 0.01 
-                        ? 'Belum Ada (Indikatif)' 
-                        : `${selectedParcel.legal_area_m2} m²`}
+                <dl className="inspector-section space-y-0">
+                  <div className="flex items-center justify-between gap-2 pb-2 mb-1">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                      Kalkulasi Luas (m²)
                     </span>
                   </div>
-                  <div className="flex justify-between text-xs sm:text-sm">
-                    <span className="text-slate-500">Hitung Spasial:</span>
-                    <span className="font-mono text-emerald-700 font-bold">{selectedParcel.spatial_area_m2 ? `${selectedParcel.spatial_area_m2} m²` : '-'}</span>
+                  <div className="data-row">
+                    <dt>Surat Dokumen</dt>
+                    <dd>
+                      {Number(selectedParcel.legal_area_m2) <= 0.01
+                        ? <span className="text-slate-400 font-sans font-normal">Belum Ada</span>
+                        : `${selectedParcel.legal_area_m2}`}
+                    </dd>
                   </div>
-                  <div className="pt-1.5 border-t border-slate-200/70 flex justify-between text-xs sm:text-sm">
-                    <span className="text-slate-500">Margin Deviasi:</span>
-                    <span className={`font-mono font-bold ${
-                      selectedParcel.deviation_percent !== null && Number(selectedParcel.deviation_percent) > 2.0 
-                        ? 'text-amber-600' 
-                        : 'text-emerald-600'
-                    }`}>
-                      {Number(selectedParcel.legal_area_m2) <= 0.01 
-                        ? 'Perlu Warkah Fisik' 
-                        : selectedParcel.deviation_percent !== null 
-                          ? `${Number(selectedParcel.deviation_percent).toFixed(2)}%` 
-                          : '-'}
-                    </span>
+                  <div className="data-row">
+                    <dt>Hitung Spasial</dt>
+                    <dd className="text-emerald-700">{selectedParcel.spatial_area_m2 ? `${selectedParcel.spatial_area_m2}` : '—'}</dd>
                   </div>
-                </div>
+                  <div className="data-row" style={{ borderBottom: 'none' }}>
+                    <dt>Margin Deviasi</dt>
+                    <dd className={selectedParcel.deviation_percent !== null && Number(selectedParcel.deviation_percent) > 2.0 ? 'text-amber-600' : 'text-emerald-600'}>
+                      {Number(selectedParcel.legal_area_m2) <= 0.01
+                        ? <span className="font-sans font-normal text-slate-400">Perlu Warkah Fisik</span>
+                        : selectedParcel.deviation_percent !== null
+                          ? `${Number(selectedParcel.deviation_percent).toFixed(2)}%`
+                          : '—'}
+                    </dd>
+                  </div>
+                </dl>
 
                 {/* Chunk 3: Catatan Lapangan */}
-                <div className="bg-slate-50/80 rounded-xl p-3 border border-slate-200/80">
-                  <span className="text-[10px] text-slate-500 block mb-0.5 uppercase tracking-wider font-semibold">Catatan Lapangan</span>
-                  <p className="text-[11px] sm:text-xs text-slate-700 italic">
-                    &quot;{selectedParcel.surveyor_notes || '-'}&quot;
+                <div className="inspector-section">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Catatan Lapangan</span>
+                  <p className="text-[11px] text-slate-600 italic leading-relaxed">
+                    &quot;{selectedParcel.surveyor_notes || '—'}&quot;
                   </p>
                 </div>
 
                 {/* Chunk 4: Dokumentasi Foto Lapangan & Data GPS Sensus */}
-                <div className="bg-slate-50/80 rounded-xl p-3 sm:p-3.5 border border-slate-200/80 space-y-3">
+                <div className="inspector-section space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
                       <Camera className="h-3.5 w-3.5 text-emerald-600" /> Foto & Lokasi Sensus
                     </span>
                     {selectedParcel.surveyed_at && (
-                      <span className="text-[9px] text-emerald-800 font-mono bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded font-semibold">
+                      <span className="text-[9px] text-emerald-800 font-mono bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded font-semibold tabular-nums">
                         {new Date(selectedParcel.surveyed_at).toLocaleDateString('id-ID', {
                           day: 'numeric',
                           month: 'short',
@@ -1047,7 +1051,7 @@ export default function Dashboard() {
                               <ExternalLink className="h-3.5 w-3.5" />
                             </div>
                             {photoPaths.length > 1 && (
-                              <span className="absolute top-2 right-2 bg-slate-950/75 backdrop-blur-sm text-white text-[10px] font-mono px-2 py-0.5 rounded-full border border-white/20 shadow-xs pointer-events-none">
+                              <span className="absolute top-2 right-2 bg-slate-950/75 backdrop-blur-sm text-white text-[10px] font-mono px-2 py-0.5 rounded-full border border-white/20 shadow-xs pointer-events-none tabular-nums">
                                 {safeIdx + 1} / {photoPaths.length}
                               </span>
                             )}
@@ -1056,7 +1060,7 @@ export default function Dashboard() {
 
                         {/* Galeri Thumbnail jika memiliki lebih dari 1 foto */}
                         {photoPaths.length > 1 && (
-                          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5">
+                          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-0.5 no-scrollbar">
                             {photoPaths.map((pPath, idx) => {
                               // URL murni tanpa transform untuk thumbnail
                               const miniThumbUrl = supabase.storage.from('parcel-photos').getPublicUrl(pPath).data.publicUrl;
@@ -1097,31 +1101,33 @@ export default function Dashboard() {
 
                   {/* Metadata GPS / Centroid jika tersedia */}
                   {selectedParcel.gps_lat !== null && selectedParcel.gps_lat !== undefined && selectedParcel.gps_lng !== null && selectedParcel.gps_lng !== undefined && (
-                    <div className="pt-2 border-t border-slate-200/80 font-mono text-[10px] sm:text-[11px] space-y-1.5 text-slate-600">
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1 font-sans text-slate-500">
+                    <dl className="pt-2 border-t border-slate-200/70 space-y-0 font-mono text-[10px]">
+                      <div className="data-row">
+                        <dt className="flex items-center gap-1">
                           <MapPin className="h-3 w-3 text-emerald-600" />
-                          {selectedParcel.gps_accuracy_m !== null && selectedParcel.gps_accuracy_m !== undefined
-                            ? 'Koordinat GPS:'
-                            : 'Centroid Poligon:'}
-                        </span>
-                        <span className="text-slate-800 font-semibold">
+                          <span>
+                            {selectedParcel.gps_accuracy_m !== null && selectedParcel.gps_accuracy_m !== undefined
+                              ? 'Koordinat GPS'
+                              : 'Centroid Poligon'}
+                          </span>
+                        </dt>
+                        <dd className="tabular-nums">
                           {Number(selectedParcel.gps_lat).toFixed(6)}, {Number(selectedParcel.gps_lng).toFixed(6)}
-                        </span>
+                        </dd>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-sans text-slate-500">
+                      <div className="data-row" style={{ borderBottom: 'none' }}>
+                        <dt>
                           {selectedParcel.gps_accuracy_m !== null && selectedParcel.gps_accuracy_m !== undefined
-                            ? 'Akurasi Perangkat:'
-                            : 'Status GPS:'}
-                        </span>
+                            ? 'Akurasi Perangkat'
+                            : 'Status GPS'}
+                        </dt>
                         {selectedParcel.gps_accuracy_m !== null && selectedParcel.gps_accuracy_m !== undefined ? (
-                          <span className="text-emerald-700 font-bold">±{Number(selectedParcel.gps_accuracy_m).toFixed(2)} m</span>
+                          <dd className="text-emerald-700 tabular-nums">±{Number(selectedParcel.gps_accuracy_m).toFixed(2)} m</dd>
                         ) : (
-                          <span className="text-amber-700 font-sans font-medium">Tanpa GPS (Delineasi Poligon)</span>
+                          <dd className="text-amber-700 font-sans font-medium">Tanpa GPS (Poligon)</dd>
                         )}
                       </div>
-                    </div>
+                    </dl>
                   )}
                 </div>
 

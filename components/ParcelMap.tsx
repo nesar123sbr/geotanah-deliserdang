@@ -102,8 +102,9 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel, isA
 
   if (!mounted) {
     return (
-      <div className="h-full w-full flex items-center justify-center bg-slate-100 text-slate-500 font-mono text-xs">
-        Menyiapkan layer peta spasial...
+      <div className="h-full w-full flex flex-col items-center justify-center gap-3 bg-gradient-to-b from-slate-50 to-slate-100 text-slate-400 font-mono text-xs rounded-2xl">
+        <div className="h-6 w-6 rounded-full border-2 border-slate-200 border-t-emerald-600 animate-spin" />
+        <span>Memuat Layer Spasial...</span>
       </div>
     );
   }
@@ -171,15 +172,18 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel, isA
               onEachFeature={(_feature, layer) => {
                 if (isAdmin && onDeleteParcel) {
                   const div = document.createElement('div');
-                  div.className = 'p-1 text-xs space-y-1';
+                  div.style.cssText = 'padding: 4px 2px; min-width: 160px;';
                   div.innerHTML = `
-                    <div style="font-weight: bold; color: #0f172a; font-family: monospace;">${parcel.nib}</div>
-                    <div style="color: #334155; font-size: 11px;">${parcel.owner_name}</div>
-                    <div style="color: #64748b; font-size: 10px;">${parcel.village}</div>
+                    <div style="font-size: 12px; font-weight: 700; color: #0f172a; font-family: 'GeistMono', 'Courier New', monospace; letter-spacing: 0.02em; margin-bottom: 2px;">${parcel.nib}</div>
+                    <div style="font-size: 11px; font-weight: 500; color: #334155; margin-bottom: 1px;">${parcel.owner_name}</div>
+                    <div style="font-size: 10px; color: #64748b;">${parcel.village}</div>
+                    <div style="height: 1px; background: #e2e8f0; margin: 8px 0 6px;"></div>
                   `;
                   const btn = document.createElement('button');
                   btn.textContent = '🗑️ Hapus Data (Admin)';
-                  btn.style.cssText = 'margin-top: 6px; width: 100%; padding: 6px 10px; background: #f43f5e; color: white; border: none; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 200ms ease;';
+                  btn.style.cssText = 'width: 100%; padding: 7px 12px; background: #f43f5e; color: white; border: none; border-radius: 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.02em; cursor: pointer;';
+                  btn.onmouseenter = () => { btn.style.background = '#e11d48'; };
+                  btn.onmouseleave = () => { btn.style.background = '#f43f5e'; };
                   btn.onclick = (e) => {
                     e.stopPropagation();
                     onDeleteParcel(parcel);
@@ -214,21 +218,24 @@ export default function ParcelMap({ parcels, selectedParcel, onSelectParcel, isA
               }}
             >
               <Popup>
-                <div className="p-1 text-xs space-y-1">
-                  <div className="font-bold text-slate-900 font-mono">{parcel.nib}</div>
-                  <div className="text-slate-700 text-[11px]">{parcel.owner_name}</div>
-                  <div className="text-slate-500 text-[10px]">{parcel.village}</div>
+                <div className="py-1 text-xs" style={{ minWidth: '160px' }}>
+                  <div className="font-bold text-slate-900 font-mono tracking-wide text-[12px]">{parcel.nib}</div>
+                  <div className="text-slate-600 text-[11px] font-medium mt-0.5">{parcel.owner_name}</div>
+                  <div className="text-slate-400 text-[10px] mt-0.5">{parcel.village}</div>
                   {isAdmin && onDeleteParcel && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteParcel(parcel);
-                      }}
-                      className="mt-2 w-full py-1.5 px-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg text-[11px] font-semibold flex items-center justify-center gap-1 shadow-xs cursor-pointer transition-all duration-200 hover:opacity-90 active:scale-[0.97]"
-                    >
-                      <span>🗑️ Hapus Data (Admin)</span>
-                    </button>
+                    <>
+                      <div className="my-2 h-px bg-slate-100" />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteParcel(parcel);
+                        }}
+                        className="w-full py-1.5 px-3 bg-rose-500 hover:bg-rose-600 text-white rounded-[10px] text-[11px] font-bold tracking-wide flex items-center justify-center gap-1.5 cursor-pointer transition-colors duration-150"
+                      >
+                        <span>🗑️ Hapus Data (Admin)</span>
+                      </button>
+                    </>
                   )}
                 </div>
               </Popup>
